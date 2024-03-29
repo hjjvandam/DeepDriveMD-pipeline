@@ -8,8 +8,6 @@ as LAMMPS[^1] or ASE[^2].
 The DeePMD code is accessible on GitHub[^3].
 DeePMD also has a tutorial[^4].
 
-## References
-
 [^1]: "LAMMPS packages" https://www.lammps.org/external.html
 [^2]: "ASE Calculators" https://wiki.fysik.dtu.dk/ase/ase/calculators/calculators.html
 [^3]: "deepmd-kit" https://github.com/deepmodeling/deepmd-kit
