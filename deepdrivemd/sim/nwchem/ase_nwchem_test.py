@@ -16,6 +16,7 @@ from pathlib import Path
 # the NWCHEM_TOP environment variable needs to be set to specify
 # where the NWChem executable lives.
 nwchem_top = None
+deepmd_source_dir = None
 test_pdb = "../../../../data/h2co/system/h2co-unfolded.pdb"
 test_inp = "h2co.nwi"
 test_out = "h2co.nwo"
@@ -29,5 +30,7 @@ print("Run NWChem")
 ase_nwchem.run_nwchem(nwchem_top,test_inp,test_out)
 print("Extract NWChem results")
 test_dat = glob.glob("*.nwo")
-ase_nwchem.nwchem_to_deepmd(test_dat)
+ase_nwchem.nwchem_to_raw(test_dat)
+print("Convert raw files to NumPy files")
+ase_nwchem.raw_to_deepmd(deepmd_source_dir)
 print("All done")

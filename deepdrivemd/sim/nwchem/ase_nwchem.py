@@ -12,7 +12,9 @@ In general this should be simple:
 # because ASE has been used to generate the files DeePMD-kit
 # needs to train by the DeePMD-kit developers.
 import ase 
+import glob
 import os
+import shutil
 import string
 import subprocess
 from os import PathLike
@@ -213,9 +215,27 @@ def _write_atmxyz(fp: PathLike, xyz: list, atmtuples: list, convert: float) -> N
             mfile.write(f'{xx} {yy} {zz} ')
         mfile.write("\n")
 
-def nwchem_to_deepmd(nwofs: list) -> None:
+def _write_box(fp,box=None) -> None:
     '''
-    Extract data from NWChem outputs and store them in a form suitable for DeePMD
+    Append the simulation box to box.raw
+
+    If box is None then we don't have periodic boundary conditions and
+    we write a default 1x1x1 box.
+
+    If box is not None then we write the three lattice vectors to box.raw.
+    '''
+    with open(fp,"a") as mfile:
+        if box:
+            for tup in box:
+                xx, yy, zz = tup
+                mfile.write(f'{xx} {yy} {zz} ')
+            mfile.write("\n")
+        else:
+            mfile.write("1.0 0.0 0.0  0.0 1.0 0.0  0.0 0.0 1.0\n")
+
+def nwchem_to_raw(nwofs: list) -> None:
+    '''
+    Extract data from NWChem outputs and store them in a raw form suitable for DeePMD
 
     DeePMD uses a batched learning approach. I.e. the training data is split into
     batches, and the training loops over batches to update the moded weights and
@@ -285,6 +305,9 @@ def nwchem_to_deepmd(nwofs: list) -> None:
     numbers of the elements. The molecule names are constructed by
     concatenating the chemical symbol and the correspond atom count
     in the structure for all the constituent elements.
+
+    This function generates the ".raw" files, see the
+    raw_to_deepmd function for the conversion to the final NumPy files.
     '''
     for nwof in nwofs:
         fp = open(nwof,"r")
@@ -318,3 +341,40 @@ def nwchem_to_deepmd(nwofs: list) -> None:
         _write_energy(mol_name/"energy.raw",energy)
         _write_atmxyz(mol_name/"coord.raw", positions, atom_list, 1.0)
         _write_atmxyz(mol_name/"force.raw", forces, atom_list, hartree_to_ev)
+        _write_box(mol_name/"box.raw")
+
+def raw_to_deepmd(deepmd_source_dir: PathLike) -> None:
+    '''
+    Convert collections of ".raw" files into the training batches DeePMD expects
+
+    DeePMD provides a script to convert the ".raw" data files into NumPy files
+    that it uses. We'll just use that script. This script needs to be run in 
+    a directory corresponding to one particular molecular structure.
+    In principle it should be possible to train on multiple molecular structures.
+    So we'll just loop over all molecular directories and run the script in
+    each.
+
+    The DeePMD conversion script is called "raw_to_set.sh". It is supposed to
+    to live at "$deepmd_source_dir/data/raw/raw_to_set.sh". The location
+    of deepmd_source_dir can be passed in as an argument, alternatively 
+    we'll check the environment variables, and the system path.
+    '''
+    if not deepmd_source_dir:
+        deepmd_source_dir = Path(os.environ.get("deepmd_source_dir"))
+    if deepmd_source_dir:
+        raw_to_set = deepmd_source_dir/"data/raw/raw_to_set.sh"
+    else:
+        raw_to_set = Path(shutil.which('raw_to_set.sh'))
+    if not raw_to_set:
+        raise RuntimeError("raw_to_set.sh not found! Set deepmd_source_dir environment variable or put raw_to_set.sh in your PATH!")
+    if not raw_to_set.is_file():
+        raise RuntimeError(raw_to_set+" is not a file! Set deepmd_source_dir environment variable or put raw_to_set.sh in your PATH!")
+    if not os.access(raw_to_set, os.X_OK):
+        raise RuntimeError(raw_to_set+" is not executable!")
+    mols = glob.glob("**/mol_*",recursive=True)
+    cwd = Path(os.getcwd())
+    for moldir in mols:
+        moldir = Path(moldir)
+        os.chdir(moldir)
+        subprocess.run([raw_to_set])
+        os.chdir(cwd)
