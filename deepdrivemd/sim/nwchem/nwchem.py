@@ -1,5 +1,5 @@
 '''
-Define the set up to run an NWChem MD simulation
+Define the setup to run an NWChem MD simulation
 
 MD simulations in NWChem go through a number of stages:
     - Generate an nwchemrc file detailing where the

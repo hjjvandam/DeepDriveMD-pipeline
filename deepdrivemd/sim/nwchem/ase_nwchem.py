@@ -14,16 +14,57 @@ In general this should be simple:
 import ase 
 import glob
 import os
+import random
 import shutil
 import string
 import subprocess
+import typing
 from os import PathLike
-from pathlib import Path
+from pathlib import Path, PurePath
 from ase.calculators.nwchem import NWChem
 from ase.io.nwchem import write_nwchem_in, read_nwchem_out
+from ase.io.proteindatabank import read_proteindatabank, write_proteindatabank
 
 # From https://www.weizmann.ac.il/oc/martin/tools/hartree.html [accessed March 28, 2024]
 hartree_to_ev = 27.211399
+
+def perturb_mol(number: int, pdb: PathLike) -> list[PathLike]:
+    '''
+    Generate a number of randomly perturbed structures from a given PDB file
+
+    To initialize a collection of structures for DeePMD to train on we need 
+    to generate such a collection. A simple way to do this is to take the
+    initial structure we have been given and subject it to a random walk.
+    Each resulting structure is stored until we have the prescribed number
+    of structures. 
+
+    The names of the new structures will be derived from the input PDB filename
+    and include a number to ensure uniqueness. A list of structure names will
+    be returned. As a side effect input files for every structure will be produced.
+
+    From the list returned input file names can be constructed by adding ".nwi"
+    and output file name by adding ".nwo"
+    '''
+    atoms = read_proteindatabank(pdb)
+    symbols = atoms.get_chemical_symbols()
+    atomicno = atoms.get_atomic_numbers()
+    atom_list = _make_atom_list(symbols,atomicno)
+    atom_list.sort(key=lambda tup: tup[2])
+    mol_name = _make_molecule_name(atom_list)
+    name_list = []
+    for ii in range(number):
+         # Perturb the atom positions
+         atoms.rattle(stdev=0.1)
+         tmpfile = Path("./tmp.pdb")
+         with open(tmpfile,"w") as fp:
+             write_proteindatabank(fp,atoms)
+         # Add the name to the return list
+         fname = Path(f"{mol_name}_{ii:06d}")
+         name_list.append(fname)
+         # Add the extension for the input file and write the input
+         inpname = fname.with_suffix(".nwi")
+         nwchem_input(inpname,tmpfile)
+    return name_list
 
 def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
     '''
@@ -41,8 +82,10 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
     reasonable results can be expected.
     '''
     molecule = ase.io.read(pdb)
+    name = str(inpf).replace(".nwi","_dat")
     fp = open(inpf,"w")
-    opts = dict(basis="cc-pvtz",
+    opts = dict(label=name,
+                basis="cc-pvtz",
                 dft=dict(xc="scan",
                          mult=1,
                          odft=None,
@@ -50,13 +93,6 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
                          maxiter=500,
                          noprint="\"final vectors analysis\""),
                 theory="dft")
-    # ASE is going to insist on this directory for the 
-    # permanent_dir and scratch_dir so we have to make 
-    # sure it exists
-    if not os.path.exists("./nwchem"):
-        os.mkdir("./nwchem")
-    elif not os.path.isdir("./nwchem"):
-        raise OSError("./nwchem exists but is not a directory")
                 
     write_nwchem_in(fp,molecule,["forces"],True,**opts)
     fp.close()
@@ -101,9 +137,20 @@ def run_nwchem(nwchem_top: PathLike, inpf: PathLike, outf: PathLike) -> None:
     if not nwchem_nproc:
         #nwchem_nproc = "16"
         nwchem_nproc = "1"
+    name = str(inpf).replace(".nwi","_dat")
+    # ASE is going to insist on this directory for the 
+    # permanent_dir and scratch_dir so we have to make 
+    # sure it exists
+    newpath = "./"+name
+    if not os.path.exists(newpath):
+        os.mkdir(newpath)
+    elif not os.path.isdir(newpath):
+        raise OSError(f"{newpath} exists but is not a directory")
     fpout = open(outf,"w")
     subprocess.run([nwchem_task_man,"-np",nwchem_nproc,nwchem_exe,inpf],stdout=fpout,stderr=subprocess.STDOUT)
     fpout.close()
+    # Now cleanup the data files
+    subprocess.run(["rm","-rf",newpath])
 
 def _make_atom_list(symbols: list,atomicnos: list) -> list:
     '''
@@ -233,6 +280,58 @@ def _write_box(fp,box=None) -> None:
         else:
             mfile.write("1.0 0.0 0.0  0.0 1.0 0.0  0.0 0.0 1.0\n")
 
+class split_tvt:
+    '''
+    A class to help with splitting data sets into training, validation, or testing sets
+    '''
+    splits = [0.8,0.9,1.0]
+    def __init__(self,splits: list[float]=None):
+        '''
+        Constructor to allow setting the splits
+
+        The splits if given specify the proportions of the three categories.
+        The default setting corresponds to 80% training, 10% validation, 10% testing.
+        The given splits will be normalized and converted to make the selection
+        easy. See function training_or_validate_or_test for details on selection.
+        '''
+        if splits:
+            if not len(splits) == 3:
+                raise RuntimeError("The list of splits must contain 3 elements not "+str(len(splits)))
+            total = 0.0
+            for rr in splits:
+                 total += rr
+                 if rr < 0.0:
+                     raise RuntimeError("The splits must be non-negative")
+            self.splits[0] = splits[0]/total
+            self.splits[1] = (splits[0]+splits[1])/total
+            self.splits[2] = 1.0
+
+    def training_or_validate_or_test(self) -> str:
+        '''
+        Select whether the current instance is part of the training, validation or test set
+
+        Based on a random number in the range [0,1] a selection is made for
+        the current instance. Based on the selection a string is returned that can be one of
+
+        - "training" : an element of the training set
+        - "validate" : an element of the validation set
+        - "testing"  : an element of the test set
+
+        Note that it is assumed that entropy from the system is used to initialize the 
+        pseudo random number generator. Hence no explicit seed is used. This is significant
+        because the Python code is expected to be launched many times in the workflow. Using
+        a fixed seed would generate the same sequence every time.
+        '''
+        rnd = random.uniform(0.0,1.0)
+        if rnd <= self.splits[0]:
+            return "training"
+        elif rnd <= self.splits[1]:
+            return "validate"
+        elif rnd <= self.splits[2]:
+            return "testing"
+        else:
+            raise RuntimeError(f"Should not get here! {rnd} not <= {self.splits[2]}?")
+
 def nwchem_to_raw(nwofs: list) -> None:
     '''
     Extract data from NWChem outputs and store them in a raw form suitable for DeePMD
@@ -309,6 +408,7 @@ def nwchem_to_raw(nwofs: list) -> None:
     This function generates the ".raw" files, see the
     raw_to_deepmd function for the conversion to the final NumPy files.
     '''
+    splitter = split_tvt([90.0,10.0,0.0])
     for nwof in nwofs:
         fp = open(nwof,"r")
         data = read_nwchem_out(fp,slice(-1,None,None))
@@ -327,7 +427,8 @@ def nwchem_to_raw(nwofs: list) -> None:
         forces = calc.get_forces()
         atom_list = _make_atom_list(symbols,atomicno)
         atom_list.sort(key=lambda tup: tup[2])
-        mol_name = Path("mol_" + _make_molecule_name(atom_list))
+        data_set = splitter.training_or_validate_or_test()
+        mol_name = Path(data_set + "_mol_" + _make_molecule_name(atom_list))
         if not mol_name.exists():
             os.mkdir(mol_name)
             fp = mol_name/"type_map.raw"
@@ -336,7 +437,7 @@ def nwchem_to_raw(nwofs: list) -> None:
             _write_type(fp,atom_list)
             fp = open(mol_name/"nopbc","w")
             fp.close()
-        elif not mol_name.isdir():
+        elif not mol_name.is_dir():
             raise OSError(mol_name+" exists but is not a directory")
         _write_energy(mol_name/"energy.raw",energy)
         _write_atmxyz(mol_name/"coord.raw", positions, atom_list, 1.0)
@@ -371,7 +472,7 @@ def raw_to_deepmd(deepmd_source_dir: PathLike) -> None:
         raise RuntimeError(raw_to_set+" is not a file! Set deepmd_source_dir environment variable or put raw_to_set.sh in your PATH!")
     if not os.access(raw_to_set, os.X_OK):
         raise RuntimeError(raw_to_set+" is not executable!")
-    mols = glob.glob("**/mol_*",recursive=True)
+    mols = glob.glob("**/*_mol_*",recursive=True)
     cwd = Path(os.getcwd())
     for moldir in mols:
         moldir = Path(moldir)
