@@ -14,6 +14,8 @@ In order to accomplish the actions listed above we need:
 import json
 import os
 import glob
+import subprocess
+import sys
 from typing import List
 from os import PathLike
 from pathlib import Path
