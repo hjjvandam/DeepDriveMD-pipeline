@@ -156,7 +156,7 @@ def _make_atom_list(symbols: list,atomicnos: list) -> list:
     '''
     Turn the list of chemical symbols and atomic numbers into a list of tuples
 
-    In order the present the data correctly to DeePMD we need to
+    In order to present the data correctly to DeePMD we need to
     sort the atoms. To facilitate this we create a list of tuples
     where each tuple consists of:
 
@@ -207,14 +207,17 @@ def _make_molecule_name(tuples: list) -> str:
             result += symbols[ii] + str(counts[ii])
     return result
 
-def _write_type_map(fp: PathLike) -> None:
+def _write_type_map(fp: PathLike, tuples: list) -> None:
     '''
     Write the "standard" type map to the file provided
     '''
     with open(fp,"w") as mfile:
-        for ii in range(1,118):
-            mfile.write(ase.data.chemical_symbols[ii].lower()+" ")
-        mfile.write(ase.data.chemical_symbols[118].lower())
+        old_atomicno = -1
+        for atm_tuple in tuples:
+            index, symbol, atomicno = atm_tuple
+            if atomicno != old_atomicno:
+                old_atomicno = atomicno
+                mfile.write(ase.data.chemical_symbols[atomicno].lower()+" ")
 
 def _write_type(fp: PathLike, tuples: list) -> None:
     '''
@@ -224,10 +227,14 @@ def _write_type(fp: PathLike, tuples: list) -> None:
     for each atom in the molecule
     '''
     with open(fp,"w") as mfile:
+        old_atomicno = -1
+        atomtype = -1
         for atm_tuple in tuples:
             index, symbol, atomicno = atm_tuple
-            atomicno -= 1
-            mfile.write(str(atomicno)+" ")
+            if atomicno != old_atomicno:
+                old_atomicno = atomicno
+                atomtype += 1
+            mfile.write(str(atomtype)+" ")
 
 def _write_energy(fp: PathLike, energy: float) -> None:
     '''
@@ -409,6 +416,7 @@ def nwchem_to_raw(nwofs: list) -> None:
     raw_to_deepmd function for the conversion to the final NumPy files.
     '''
     splitter = split_tvt([90.0,10.0,0.0])
+    #splitter = split_tvt([2.0,1.0,0.0]) # use this for testing to get validation and training with small data sets
     for nwof in nwofs:
         fp = open(nwof,"r")
         data = read_nwchem_out(fp,slice(-1,None,None))
@@ -432,7 +440,7 @@ def nwchem_to_raw(nwofs: list) -> None:
         if not mol_name.exists():
             os.mkdir(mol_name)
             fp = mol_name/"type_map.raw"
-            _write_type_map(fp)
+            _write_type_map(fp,atom_list)
             fp = mol_name/"type.raw"
             _write_type(fp,atom_list)
             fp = open(mol_name/"nopbc","w")
