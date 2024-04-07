@@ -13,14 +13,30 @@ _T = TypeVar("_T")
 
 class BaseSettings(_BaseSettings):
     def dump_yaml(self, cfg_path: PathLike) -> None:
+        '''
+        DeepDriveMD uses YAML files to configure each stage in the workflow
+        '''
         with open(cfg_path, mode="w") as fp:
             yaml.dump(json.loads(self.json()), fp, indent=4, sort_keys=False)
+
+    #def dump_json(self, cfg_path: PathLike) -> None:
+    #    '''
+    #    Some components (e.g. DeePMD) use JSON files as input
+    #    '''
+    #    with open(cfg_path, mode="w") as fp:
+    #        json.dump(json.loads(self.json()), fp, indent=4, sort_keys=False)
 
     @classmethod
     def from_yaml(cls: Type[_T], filename: PathLike) -> _T:
         with open(filename) as fp:
             raw_data = yaml.safe_load(fp)
         return cls(**raw_data)  # type: ignore[call-arg]
+
+    #@classmethod
+    #def from_json(cls: Type[_T], filename: PathLike) -> _T:
+    #    with open(filename) as fp:
+    #        raw_data = json.load(fp)
+    #    return cls(**raw_data)  # type: ignore[call-arg]
 
 
 class CPUReqs(BaseSettings):
