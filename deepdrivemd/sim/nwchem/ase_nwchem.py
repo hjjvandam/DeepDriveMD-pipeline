@@ -29,8 +29,7 @@ from ase.io.proteindatabank import read_proteindatabank, write_proteindatabank
 hartree_to_ev = 27.211399
 
 def perturb_mol(number: int, pdb: PathLike) -> list[PathLike]:
-    '''
-    Generate a number of randomly perturbed structures from a given PDB file
+    """Write input files for a number of molecular structures.
 
     To initialize a collection of structures for DeePMD to train on we need 
     to generate such a collection. A simple way to do this is to take the
@@ -44,7 +43,11 @@ def perturb_mol(number: int, pdb: PathLike) -> list[PathLike]:
 
     From the list returned input file names can be constructed by adding ".nwi"
     and output file name by adding ".nwo"
-    '''
+
+    Arguments:
+    number -- the number of perturbed structure to generate
+    pdb -- the PDB file with the initial molecular structure
+    """
     atoms = read_proteindatabank(pdb)
     symbols = atoms.get_chemical_symbols()
     atomicno = atoms.get_atomic_numbers()
@@ -67,8 +70,7 @@ def perturb_mol(number: int, pdb: PathLike) -> list[PathLike]:
     return name_list
 
 def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
-    '''
-    Generate an NWChem input file
+    """Generate an NWChem input file.
 
     Take the input structure (a PDB file) and create an ASE NWChem
     calculator for a DFT gradient calculation. The calculator is
@@ -80,7 +82,11 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
     have a closed shell electron density.
     We use a TZVP basis set because that is the smallest basis set for which 
     reasonable results can be expected.
-    '''
+
+    Arguments:
+    inpf -- the name of the input file to be generated
+    pdb -- the PDB file containing the chemical structure
+    """
     molecule = ase.io.read(pdb)
     name = str(inpf).replace(".nwi","_dat")
     fp = open(inpf,"w")
@@ -98,12 +104,8 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
     fp.close()
 
 def run_nwchem(nwchem_top: PathLike, inpf: PathLike, outf: PathLike) -> None:
-    '''
-    Run the NWChem calculation
+    """Run the NWChem calculation
 
-    NWChem is invoked with fixed command line parameters.
-    - nwchem.nwi - input file
-    - nwchem.nwo - output file
     The executable name is constructed from the NWCHEM_TOP
     environment variable as NWCHEM_TOP/bin/LINUX64/nwchem.
     In principle LINUX64 could be different for different
@@ -117,7 +119,12 @@ def run_nwchem(nwchem_top: PathLike, inpf: PathLike, outf: PathLike) -> None:
 
     The environment variable NWCHEM_NPROC specifies the
     number of MPI processes to run NWChem on.
-    '''
+
+    Arguments:
+    nwchem_top -- specification of NWCHEM_TOP as an argument
+    inpf -- the name of the NWChem input file
+    outf -- the name of the NWChem output file
+    """
     if not nwchem_top:
         nwchem_top = os.environ.get("NWCHEM_TOP")
     if nwchem_top:
@@ -153,8 +160,7 @@ def run_nwchem(nwchem_top: PathLike, inpf: PathLike, outf: PathLike) -> None:
     subprocess.run(["rm","-rf",newpath])
 
 def _make_atom_list(symbols: list,atomicnos: list) -> list:
-    '''
-    Turn the list of chemical symbols and atomic numbers into a list of tuples
+    """Turn the list of chemical symbols and atomic numbers into a list of tuples.
 
     In order to present the data correctly to DeePMD we need to
     sort the atoms. To facilitate this we create a list of tuples
@@ -165,7 +171,11 @@ def _make_atom_list(symbols: list,atomicnos: list) -> list:
     where index is the atom position in the original list, 
     symbol is the chemical symbol of the atom, and atomic number
     is the corresponding atomic number of the element.
-    '''
+
+    Arguments:
+    symbols -- the list of chemical symbols of the atoms in the molecular structure
+    atomicno -- the list of atomic numbers of the atoms in the molecular structure
+    """
     result = []
     len_symbols = len(symbols)
     len_atomicno = len(atomicnos)
@@ -177,8 +187,7 @@ def _make_atom_list(symbols: list,atomicnos: list) -> list:
     return result
 
 def _make_molecule_name(tuples: list) -> str:
-    '''
-    DeePMD needs a kind of bruto formula for the molecule as a name
+    """Return a kind of bruto formula for the molecule as a name.
 
     The way DeePMD stores its training data we need separate directories
     for every different "bruto formula" in the training set. 
@@ -193,7 +202,10 @@ def _make_molecule_name(tuples: list) -> str:
     would produce c1au1 and ca1u1 which clearly are different (essentially
     we use the count BOTH to report the count AND as a separator between
     elements).
-    '''
+
+    Arguments:
+    tuples -- list of tuples (index, symbol, atomic number)
+    """
     # There are 118 chemical elements but the atomic numbers are base 1 instead of base 0
     symbols = [""] * 119
     counts = [0] * 119
@@ -208,9 +220,12 @@ def _make_molecule_name(tuples: list) -> str:
     return result
 
 def _write_type_map(fp: PathLike, tuples: list) -> None:
-    '''
-    Write the "standard" type map to the file provided
-    '''
+    """Write the type map to file.
+    
+    Arguments:
+    fp -- the filename of the type map file
+    tuples -- list of tuples (index, symbol, atomic number) sorted by atomic number
+    """
     with open(fp,"w") as mfile:
         old_atomicno = -1
         for atm_tuple in tuples:
@@ -220,12 +235,15 @@ def _write_type_map(fp: PathLike, tuples: list) -> None:
                 mfile.write(ase.data.chemical_symbols[atomicno].lower()+" ")
 
 def _write_type(fp: PathLike, tuples: list) -> None:
-    '''
-    Write DeePMD's type file
+    """Write DeePMD's type file
 
     The type file contains a single line with the atomic number minus 1 
     for each atom in the molecule
-    '''
+
+    Arguments:
+    fp -- the filename of the types file
+    tuples -- list of tuples (index, symbol, atomic number) sorted by atomic number
+    """
     with open(fp,"w") as mfile:
         old_atomicno = -1
         atomtype = -1
@@ -237,28 +255,31 @@ def _write_type(fp: PathLike, tuples: list) -> None:
             mfile.write(str(atomtype)+" ")
 
 def _write_energy(fp: PathLike, energy: float) -> None:
-    '''
-    Append the energy in eV to the energy file
-    '''
+    """Append the energy in eV to the energy file."""
     with open(fp,"a") as mfile:
         mfile.write(str(energy*hartree_to_ev)+"\n")
 
 def _write_atmxyz(fp: PathLike, xyz: list, atmtuples: list, convert: float) -> None:
-    '''
-    Add a line with atomic x,y,z quantities to quantity file
+    """Add a line with atomic x,y,z quantities to quantity file.
 
     Because coordinates and forces are all 3D quantities we can use the
     same rountine to write either.
 
     This function is a little bit more involved because:
-    - the have to be sorted according to the data in type.raw
+    - the coordinates have to be sorted according to the data in type.raw
     - xyz is a list of lists where for every atom you have a list of x,y,z
     Assumptions:
     - atmtuples is sorted on the atomic numbers
     - coordinates are provide in Angstrom
     - forces are provided in Hartree/Angstrom
     - convert is the appropriate conversion factor for DeePMD
-    '''
+
+    Arguments:
+    fp -- the file name
+    xyz -- list of coordinates in the original atom ordering
+    atmtuples -- list of tuples (index, symbol, atomic number) sorted by atomic number
+    convert -- the conversion factor for NWChem to DeePMD
+    """
     with open(fp,"a") as mfile:
         for tup in atmtuples:
             index, symbol, atomicno = tup
@@ -270,14 +291,17 @@ def _write_atmxyz(fp: PathLike, xyz: list, atmtuples: list, convert: float) -> N
         mfile.write("\n")
 
 def _write_box(fp,box=None) -> None:
-    '''
-    Append the simulation box to box.raw
+    """Append the simulation box to box.raw.
 
     If box is None then we don't have periodic boundary conditions and
     we write a default 1x1x1 box.
 
     If box is not None then we write the three lattice vectors to box.raw.
-    '''
+
+    Arguments:
+    fp -- the file name
+    box -- the lattice vectors
+    """
     with open(fp,"a") as mfile:
         if box:
             for tup in box:
@@ -288,19 +312,19 @@ def _write_box(fp,box=None) -> None:
             mfile.write("1.0 0.0 0.0  0.0 1.0 0.0  0.0 0.0 1.0\n")
 
 class split_tvt:
-    '''
-    A class to help with splitting data sets into training, validation, or testing sets
-    '''
-    splits = [0.8,0.9,1.0]
+    """A class to help with splitting data sets into training, validation, or testing sets."""
+    splits = [0.8,0.9,1.0] # corresponds to 80% training, 10% validation, and 10% testing
     def __init__(self,splits: list[float]=None):
-        '''
-        Constructor to allow setting the splits
+        """Constructor to allow setting the splits.
 
         The splits if given specify the proportions of the three categories.
         The default setting corresponds to 80% training, 10% validation, 10% testing.
         The given splits will be normalized and converted to make the selection
         easy. See function training_or_validate_or_test for details on selection.
-        '''
+
+        Arguments:
+        splits -- a list of 3 non-negative numbers
+        """
         if splits:
             if not len(splits) == 3:
                 raise RuntimeError("The list of splits must contain 3 elements not "+str(len(splits)))
@@ -309,13 +333,14 @@ class split_tvt:
                  total += rr
                  if rr < 0.0:
                      raise RuntimeError("The splits must be non-negative")
+            if total <= 0.0:
+                raise RuntimeError("The sum of splits must be positive")
             self.splits[0] = splits[0]/total
             self.splits[1] = (splits[0]+splits[1])/total
             self.splits[2] = 1.0
 
     def training_or_validate_or_test(self) -> str:
-        '''
-        Select whether the current instance is part of the training, validation or test set
+        """Select whether the current instance is part of the training, validation or test set.
 
         Based on a random number in the range [0,1] a selection is made for
         the current instance. Based on the selection a string is returned that can be one of
@@ -328,7 +353,7 @@ class split_tvt:
         pseudo random number generator. Hence no explicit seed is used. This is significant
         because the Python code is expected to be launched many times in the workflow. Using
         a fixed seed would generate the same sequence every time.
-        '''
+        """
         rnd = random.uniform(0.0,1.0)
         if rnd <= self.splits[0]:
             return "training"
@@ -340,8 +365,7 @@ class split_tvt:
             raise RuntimeError(f"Should not get here! {rnd} not <= {self.splits[2]}?")
 
 def nwchem_to_raw(nwofs: list) -> None:
-    '''
-    Extract data from NWChem outputs and store them in a raw form suitable for DeePMD
+    """Extract data from NWChem outputs and store them in a raw form suitable for DeePMD
 
     DeePMD uses a batched learning approach. I.e. the training data is split into
     batches, and the training loops over batches to update the moded weights and
@@ -414,7 +438,10 @@ def nwchem_to_raw(nwofs: list) -> None:
 
     This function generates the ".raw" files, see the
     raw_to_deepmd function for the conversion to the final NumPy files.
-    '''
+
+    Arguments:
+    nwofs -- a list of NWChem output files
+    """
     splitter = split_tvt([90.0,10.0,0.0])
     #splitter = split_tvt([2.0,1.0,0.0]) # use this for testing to get validation and training with small data sets
     for nwof in nwofs:
@@ -453,8 +480,7 @@ def nwchem_to_raw(nwofs: list) -> None:
         _write_box(mol_name/"box.raw")
 
 def raw_to_deepmd(deepmd_source_dir: PathLike) -> None:
-    '''
-    Convert collections of ".raw" files into the training batches DeePMD expects
+    """Convert collections of ".raw" files into the training batches DeePMD expects
 
     DeePMD provides a script to convert the ".raw" data files into NumPy files
     that it uses. We'll just use that script. This script needs to be run in 
@@ -467,11 +493,14 @@ def raw_to_deepmd(deepmd_source_dir: PathLike) -> None:
     to live at "$deepmd_source_dir/data/raw/raw_to_set.sh". The location
     of deepmd_source_dir can be passed in as an argument, alternatively 
     we'll check the environment variables, and the system path.
-    '''
+
+    Arguments:
+    deepmd_source_dir -- the path to the DeePMD source code directory
+    """
     if not deepmd_source_dir:
         deepmd_source_dir = Path(os.environ.get("deepmd_source_dir"))
     if deepmd_source_dir:
-        raw_to_set = deepmd_source_dir/"data/raw/raw_to_set.sh"
+        raw_to_set = Path(deepmd_source_dir,"data/raw/raw_to_set.sh")
     else:
         raw_to_set = Path(shutil.which('raw_to_set.sh'))
     if not raw_to_set:
