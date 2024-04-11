@@ -255,9 +255,14 @@ def _write_type(fp: PathLike, tuples: list) -> None:
             mfile.write(str(atomtype)+" ")
 
 def _write_energy(fp: PathLike, energy: float) -> None:
-    """Append the energy in eV to the energy file."""
+    """Append the energy in eV to the energy file.
+
+    Arguments:
+    fp -- the file name for the energy.raw file
+    energy -- the energy provide by ASE in eV
+    """
     with open(fp,"a") as mfile:
-        mfile.write(str(energy*hartree_to_ev)+"\n")
+        mfile.write(str(energy)+"\n")
 
 def _write_atmxyz(fp: PathLike, xyz: list, atmtuples: list, convert: float) -> None:
     """Add a line with atomic x,y,z quantities to quantity file.
@@ -271,7 +276,7 @@ def _write_atmxyz(fp: PathLike, xyz: list, atmtuples: list, convert: float) -> N
     Assumptions:
     - atmtuples is sorted on the atomic numbers
     - coordinates are provide in Angstrom
-    - forces are provided in Hartree/Angstrom
+    - forces are provided in eV/Angstrom
     - convert is the appropriate conversion factor for DeePMD
 
     Arguments:
@@ -443,14 +448,14 @@ def nwchem_to_raw(nwofs: list) -> None:
     nwofs -- a list of NWChem output files
     """
     splitter = split_tvt([90.0,10.0,0.0])
-    #splitter = split_tvt([2.0,1.0,0.0]) # use this for testing to get validation and training with small data sets
+    splitter = split_tvt([2.0,1.0,0.0]) # use this for testing to get validation and training with small data sets
     for nwof in nwofs:
         fp = open(nwof,"r")
         data = read_nwchem_out(fp,slice(-1,None,None))
         fp.close()
         atoms = data[0]
         calc = atoms.get_calculator()
-        # NWChem DFT energy in Hartree
+        # NWChem DFT energy in eV
         energy = calc.get_potential_energy()
         # Chemical symbols of the atoms
         symbols = atoms.get_chemical_symbols()
@@ -458,10 +463,10 @@ def nwchem_to_raw(nwofs: list) -> None:
         atomicno = atoms.get_atomic_numbers()
         # NWChem atomic positions in Angstrom
         positions = atoms.get_positions()
-        # NWChem atomic forces in Hartree/Angstrom
+        # NWChem atomic forces in eV/Angstrom
         forces = calc.get_forces()
         atom_list = _make_atom_list(symbols,atomicno)
-        atom_list.sort(key=lambda tup: tup[2])
+        atom_list.sort(key=lambda tup: tup[1])
         data_set = splitter.training_or_validate_or_test()
         mol_name = Path(data_set + "_mol_" + _make_molecule_name(atom_list))
         if not mol_name.exists():
@@ -476,7 +481,7 @@ def nwchem_to_raw(nwofs: list) -> None:
             raise OSError(mol_name+" exists but is not a directory")
         _write_energy(mol_name/"energy.raw",energy)
         _write_atmxyz(mol_name/"coord.raw", positions, atom_list, 1.0)
-        _write_atmxyz(mol_name/"force.raw", forces, atom_list, hartree_to_ev)
+        _write_atmxyz(mol_name/"force.raw", forces, atom_list, 1.0)
         _write_box(mol_name/"box.raw")
 
 def raw_to_deepmd(deepmd_source_dir: PathLike) -> None:
