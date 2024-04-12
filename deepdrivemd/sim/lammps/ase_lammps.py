@@ -38,10 +38,31 @@ from os import PathLike
 from pathlib import Path
 from typing import List
 
+class Atoms:
+    """Atoms class to trick MD-tools reporter."""
+    def __init__(self,atom_lst: List):
+        self._atoms = atom_lst
+    def atoms(self):
+        return self._atoms
+
 class Simulation:
+    """Simulation class to trick MD-tools reporter.
+
+    MD-tools (https://github.com/hjjvandam/MD-tools/tree/nwchem) was
+    originally designed to support OpenMM calculations in DeepDriveMD.
+    I just want to run LAMMPS, and use MD-tools to convert the DCD file
+    produced to a contact map file in HDF5 as required by DeepDriveMD. 
+    At the same time I don't want to bring all of OpenMM into my
+    environment just to be able to run this conversion. This Simulation
+    class with the Atoms class above allow me to give the OfflineReporter
+    what it needs without bringing all the OpenMM baggage along.
+    """
     def __init__(self,pdb_file):
         self.pdb_file = Path(pdb_file)
-        self.topology = (mda.Universe(pdb_file,pdb_file))._topology
+        universe = mda.Universe(pdb_file,pdb_file)
+        atomgroup = universe.select_atoms("all")
+        atoms = [ag for ag in atomgroup]
+        self.topology = Atoms(atoms)
 
 def _sort_uniq(sequence):
     """Return a sorted sequence of unique instances.
@@ -227,17 +248,14 @@ def lammps_contactmap(trj_file: PathLike, pdb_file: PathLike, hdf5_file: PathLik
     pdb = mda.Universe(pdb_file,pdb_file)
     sim = Simulation(pdb_file)
     selection = trj.select_atoms("all")
+    atoms = [ag.name for ag in selection]
     report_steps = 100
     frames_per_h5 = int(10000/report_steps)
-
-    #DEBUG
-    return
-    #DEBUG
 
     reporter = OfflineReporter(
                    hdf5_file,report_steps,frames_per_h5=frames_per_h5,
                    wrap_pdb_file=None,reference_pdb_file=pdb_file,
-                   openmm_selection="all",mda_selection="all",
+                   openmm_selection=atoms,mda_selection="all",
                    threshold=8.0,
                    contact_map=False,point_cloud=True,fraction_of_contacts=False)
     for ts in trj.trajectory:

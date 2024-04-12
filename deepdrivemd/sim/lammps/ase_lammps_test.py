@@ -22,9 +22,9 @@ else:
     print("Accept trajectory")
 print(struct)
 trajectory = Path(cwd,test_dir,"trj_lammps.dcd")
-hdf5_file = Path(cwd,test_dir,"trj_lammps.h5")
+hdf5_basename = Path(cwd,test_dir,"trj_lammps")
 ase_lammps.lammps_to_pdb(trajectory,pdb,struct,data_dir)
-ase_lammps.lammps_contactmap(trajectory,pdb,hdf5_file)
+ase_lammps.lammps_contactmap(trajectory,pdb,hdf5_basename)
 
 exit()
 
