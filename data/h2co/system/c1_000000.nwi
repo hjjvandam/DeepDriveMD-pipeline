@@ -1,0 +1,31 @@
+echo
+
+title "c1_000000_dat"
+
+permanent_dir /direct/sdcc+u/hvandam/DeepDriveMD-pipeline/deepdrivemd/sim/nwchem/test_dir/c1_000000_dat
+
+scratch_dir /direct/sdcc+u/hvandam/DeepDriveMD-pipeline/deepdrivemd/sim/nwchem/test_dir/c1_000000_dat
+
+start c1_000000_dat
+
+geometry units angstrom nocenter noautosym noautoz
+  C  6.2580000000000000e+00 6.2779999999999996e+00 6.3810000000000002e+00
+end
+
+basis noprint
+   * library cc-pvtz
+end
+
+dft
+  xc scan
+  mult 3
+  odft
+  direct
+  maxiter 500
+  noprint "final vectors analysis"
+end
+
+
+
+task dft gradient
+
