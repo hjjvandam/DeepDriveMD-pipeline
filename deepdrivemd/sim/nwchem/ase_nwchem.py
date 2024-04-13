@@ -18,9 +18,9 @@ import random
 import shutil
 import string
 import subprocess
-import typing
 from os import PathLike
 from pathlib import Path, PurePath
+from typing import List, Tuple
 from ase.calculators.nwchem import NWChem
 from ase.io.nwchem import write_nwchem_in, read_nwchem_out
 from ase.io.proteindatabank import read_proteindatabank, write_proteindatabank
@@ -28,7 +28,7 @@ from ase.io.proteindatabank import read_proteindatabank, write_proteindatabank
 # From https://www.weizmann.ac.il/oc/martin/tools/hartree.html [accessed March 28, 2024]
 hartree_to_ev = 27.211399
 
-def perturb_mol(number: int, pdb: PathLike) -> list[PathLike]:
+def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
     """Write input files for a number of molecular structures.
 
     To initialize a collection of structures for DeePMD to train on we need 
@@ -69,6 +69,18 @@ def perturb_mol(number: int, pdb: PathLike) -> list[PathLike]:
          nwchem_input(inpname,tmpfile)
     return name_list
 
+def fetch_input(data: PathLike) -> List[PathLike]:
+    """Copy pre-existing NWChem input files."""
+    path = Path(data,"*.nwi")
+    src_inputs = glob.glob(str(path))
+    name_list = []
+    for inp in src_inputs:
+        name = Path(inp).name
+        stem = Path(inp).stem
+        subprocess.run(["cp",str(inp),str(name)])
+        name_list.append(Path(stem))
+    return name_list
+
 def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
     """Generate an NWChem input file.
 
@@ -92,6 +104,7 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
     fp = open(inpf,"w")
     opts = dict(label=name,
                 basis="cc-pvtz",
+                symmetry="c1",
                 dft=dict(xc="scan",
                          mult=1,
                          odft=None,
@@ -159,7 +172,7 @@ def run_nwchem(nwchem_top: PathLike, inpf: PathLike, outf: PathLike) -> None:
     # Now cleanup the data files
     subprocess.run(["rm","-rf",newpath])
 
-def _make_atom_list(symbols: list,atomicnos: list) -> list:
+def _make_atom_list(symbols: List[str],atomicnos: List[int]) -> List[Tuple[int,str,int]]:
     """Turn the list of chemical symbols and atomic numbers into a list of tuples.
 
     In order to present the data correctly to DeePMD we need to
@@ -186,7 +199,7 @@ def _make_atom_list(symbols: list,atomicnos: list) -> list:
         result.append((ii,symbols[ii],atomicnos[ii]))
     return result
 
-def _make_molecule_name(tuples: list) -> str:
+def _make_molecule_name(tuples: List[Tuple[int,str,int]]) -> str:
     """Return a kind of bruto formula for the molecule as a name.
 
     The way DeePMD stores its training data we need separate directories
@@ -219,7 +232,7 @@ def _make_molecule_name(tuples: list) -> str:
             result += symbols[ii] + str(counts[ii])
     return result
 
-def _write_type_map(fp: PathLike, tuples: list) -> None:
+def _write_type_map(fp: PathLike, tuples: List[Tuple[int,str,int]]) -> None:
     """Write the type map to file.
     
     Arguments:
@@ -234,7 +247,7 @@ def _write_type_map(fp: PathLike, tuples: list) -> None:
                 old_atomicno = atomicno
                 mfile.write(ase.data.chemical_symbols[atomicno].lower()+" ")
 
-def _write_type(fp: PathLike, tuples: list) -> None:
+def _write_type(fp: PathLike, tuples: List[Tuple[int,str,int]]) -> None:
     """Write DeePMD's type file
 
     The type file contains a single line with the atomic number minus 1 
@@ -264,7 +277,7 @@ def _write_energy(fp: PathLike, energy: float) -> None:
     with open(fp,"a") as mfile:
         mfile.write(str(energy)+"\n")
 
-def _write_atmxyz(fp: PathLike, xyz: list, atmtuples: list, convert: float) -> None:
+def _write_atmxyz(fp: PathLike, xyz: List[List[float]], atmtuples: List[Tuple[int,str,int]], convert: float) -> None:
     """Add a line with atomic x,y,z quantities to quantity file.
 
     Because coordinates and forces are all 3D quantities we can use the
@@ -319,7 +332,7 @@ def _write_box(fp,box=None) -> None:
 class split_tvt:
     """A class to help with splitting data sets into training, validation, or testing sets."""
     splits = [0.8,0.9,1.0] # corresponds to 80% training, 10% validation, and 10% testing
-    def __init__(self,splits: list[float]=None):
+    def __init__(self,splits: List[float]=None):
         """Constructor to allow setting the splits.
 
         The splits if given specify the proportions of the three categories.
@@ -369,7 +382,57 @@ class split_tvt:
         else:
             raise RuntimeError(f"Should not get here! {rnd} not <= {self.splits[2]}?")
 
-def nwchem_to_raw(nwofs: list) -> None:
+def _global_chemical_symbols(mols: List[PathLike]) -> List[str]:
+    """Return the set of chemical symbols from all the type_map.raw files.
+
+    The list returned is sorted in alphabetical order.
+
+    Arguments:
+    mols -- the list of all directories containing training data
+    """
+    global_sym = []
+    for mol in mols:
+       path = Path(mol,"type_map.raw")
+       with open(path,"r") as fp:
+           line = fp.readline()
+       elements = line.split()
+       global_sym += elements
+    # Use set to remove duplicates
+    tmp = set(global_sym)
+    # Turn unique elements back into a sorted list
+    global_sym = sorted([x for x in tmp])
+    return global_sym
+
+def _remap_types(mols: List[PathLike], global_sym: List[str]) -> None:
+    """Replace type_map.raw and type.raw with ones based on the global chemical symbols list."""
+    for mol in mols:
+        path_type_map = Path(mol,"type_map.raw")
+        path_type     = Path(mol,"type.raw")
+        with open(path_type_map,"r") as fp:
+            line = fp.readline()
+        chem_symb = line.split()
+        with open(path_type,"r") as fp:
+            line = fp.readline()
+        chem_type = [int(x) for x in line.split()]
+        chem_type = [global_sym.index(chem_symb[x]) for x in chem_type]
+        with open(path_type_map,"w") as fp:
+            for x in global_sym:
+                fp.write(f"{x} ")
+        with open(path_type,"w") as fp:
+            for x in chem_type:
+                y = str(x)
+                fp.write(f"{y} ")
+
+def _harmonize_atom_types() -> None:
+    """Harmonize the type_map.raw and type.raw files across the entire training set."""
+    # Gather all training data directories
+    mols = glob.glob("**/*_mol_*",recursive=True)
+    # Gather all chemical elements from the type_map.raw files
+    global_symbols = _global_chemical_symbols(mols)
+    # Replace the type_map.raw and type.raw files
+    _remap_types(mols,global_symbols)
+
+def nwchem_to_raw(nwofs: List[PathLike]) -> None:
     """Extract data from NWChem outputs and store them in a raw form suitable for DeePMD
 
     DeePMD uses a batched learning approach. I.e. the training data is split into
@@ -433,7 +496,7 @@ def nwchem_to_raw(nwofs: list) -> None:
     as a results the types in type.raw simply consist of the atomic numbers
     minus 1. At worst this will generate data structures that are 100 times
     larger than they need to be. Because the neural networks in DeePMD are just
-    a few kB a piece this will waste a most a few MB of memory, which seems
+    a few kB a piece this will waste at most a few MB of memory, which seems
     acceptable. 
 
     Molecules are canonicalized by sorting the structures on the atomic
@@ -443,6 +506,21 @@ def nwchem_to_raw(nwofs: list) -> None:
 
     This function generates the ".raw" files, see the
     raw_to_deepmd function for the conversion to the final NumPy files.
+
+    Comment on the suggestions given above: First of all, ASE tends to sort
+    chemical elements alphabetically. So listing all the elements in the
+    order of increasing atomic number causes mismatches between the trained
+    models and the atom types in the molecular dynamics simulations. Hence
+    we are forced to use alphabetic ordering everywhere. Second, the initial
+    memory impact assessment turned out to be way off the mark. Providing
+    one type_map.raw instance listing the entire periodic table of the elements
+    caused TensorFlow to run out of memory. Hence the type_map.raw files should
+    include a more limited set of elements. Third, whereas the chemical element
+    information is provided to DeePMD during the training stage, LAMMPS that is 
+    used for the molecular dynamics simulations only has atom type numbers. So
+    we have to expect that the truly used atom information is in the type.raw
+    files. This means that we have to harmonize the type_map.raw and type.raw
+    files across the entire training data set used to train a particular model.
 
     Arguments:
     nwofs -- a list of NWChem output files
@@ -467,7 +545,18 @@ def nwchem_to_raw(nwofs: list) -> None:
         forces = calc.get_forces()
         atom_list = _make_atom_list(symbols,atomicno)
         atom_list.sort(key=lambda tup: tup[1])
-        data_set = splitter.training_or_validate_or_test()
+        if len(atom_list) <= 1:
+            # Single atom chemical systems should always be added to the training set.
+            # These systems do not make sense in the validation set:
+            # - They have only a single geometry
+            # - The information they provide is unique
+            # - The information they provide is uniquely important as it pins the
+            #   energy of a particular atom down. Given that DeePMD writes the
+            #   total energy as a sum of atomic energies knowing what the individual
+            #   energies are seems key.
+            data_set = "training"
+        else:
+            data_set = splitter.training_or_validate_or_test()
         mol_name = Path(data_set + "_mol_" + _make_molecule_name(atom_list))
         if not mol_name.exists():
             os.mkdir(mol_name)
@@ -483,6 +572,7 @@ def nwchem_to_raw(nwofs: list) -> None:
         _write_atmxyz(mol_name/"coord.raw", positions, atom_list, 1.0)
         _write_atmxyz(mol_name/"force.raw", forces, atom_list, 1.0)
         _write_box(mol_name/"box.raw")
+    _harmonize_atom_types()
 
 def raw_to_deepmd(deepmd_source_dir: PathLike) -> None:
     """Convert collections of ".raw" files into the training batches DeePMD expects
