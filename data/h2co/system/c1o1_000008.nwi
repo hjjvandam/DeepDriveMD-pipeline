@@ -22,7 +22,7 @@ dft
   mult 1
   odft
   direct
-  maxiter 500
+  maxiter 1000
   mulliken
   noprint "final vectors analysis"
 end
