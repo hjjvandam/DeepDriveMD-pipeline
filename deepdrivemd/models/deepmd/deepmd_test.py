@@ -12,9 +12,22 @@ train4 = Path("./train-4")
 ckpt = Path("model.ckpt")
 
 deepmd.gen_input(data_path,json_file)
-deepmd.train(train1,json_file)
-deepmd.train(train2,json_file)
-deepmd.train(train3,json_file)
-deepmd.train(train4,json_file)
-#deepmd.train(train1,json_file,ckpt_file=ckpt)
-#deepmd.train(train2,json_file,ckpt_file=ckpt)
+if not train1.exists():
+    deepmd.train(train1,json_file)
+else:
+    deepmd.train(train1,json_file,ckpt_file=ckpt)
+
+if not train2.exists():
+    deepmd.train(train2,json_file)
+else:
+    deepmd.train(train2,json_file,ckpt_file=ckpt)
+
+if not train3.exists():
+    deepmd.train(train3,json_file)
+else:
+    deepmd.train(train3,json_file,ckpt_file=ckpt)
+
+if not train4.exists():
+    deepmd.train(train4,json_file)
+else:
+    deepmd.train(train4,json_file,ckpt_file=ckpt)
