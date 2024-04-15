@@ -48,7 +48,8 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
     number -- the number of perturbed structure to generate
     pdb -- the PDB file with the initial molecular structure
     """
-    atoms = read_proteindatabank(pdb)
+    with open(pdb,"r") as fp:
+        atoms = read_proteindatabank(pdb,index=0)
     symbols = atoms.get_chemical_symbols()
     atomicno = atoms.get_atomic_numbers()
     atom_list = _make_atom_list(symbols,atomicno)
@@ -67,6 +68,75 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
          # Add the extension for the input file and write the input
          inpname = fname.with_suffix(".nwi")
          nwchem_input(inpname,tmpfile)
+    return name_list
+
+def clean_pdb(pdb: PathLike,tmp: PathLike) -> None:
+    """Supress ASE junk.
+
+    ASE inherently assumes that any PDB file it writes is a crystal structure.
+    The CRYST1 line it adds reinforces that and when ASE writes an NWChem 
+    input file it will write the geometry as if you are using the planewave
+    code. This breaks everything when you try to do Gaussian basis set 
+    calculations. So we need to remove the CRYST1 lines. 
+
+    Another nasty thing is that ASE adds ENDMDL lines. This means that the PDB
+    files it writes ends as:
+
+       ENDMDL
+       END
+
+    This causes another problem. The ENDMDL line completes the molecular structure
+    and starts a new one. As the next line is END this last molecular structure
+    is an empty one. The protein reader read_proteindatabank by default returns
+    the last structure from the PDB file. I.e. if ASE wrote the PDB file you get
+    an empty structure! Fortunately, you can just ask the structure corresponding
+    to index=0 and get what you need. So for now I am not going to worry about
+    this, but this is definitely something to keep in mind.
+    """
+    with open(pdb,"r") as fp_in:
+        with open(tmp,"w") as fp_out:
+            line = fp_in.readline()
+            while line:
+                if not line[0:6] == "CRYST1":
+                    fp_out.write(line)
+                line = fp_in.readline()
+
+def gen_new_inputs(pdb_path: PathLike) -> List[PathLike]:
+    """Write input files for a number of molecular structures.
+
+    From, for example, a prior molecular dynamics run we get an additional
+    set of PDB files. This function converts those PDB into new input
+    files and returns the list of those input files. We need to check
+    that the new input filenames are unique so we don't overwrite 
+    anything.
+
+    From the list returned input file names can be constructed by adding ".nwi"
+    and output file name by adding ".nwo"
+
+    Arguments:
+    pdb_path -- the path where the new PDB files reside
+    """
+    pdbs = glob.glob(str(Path(pdb_path,"*.pdb")))
+    name_list = []
+    ii = 0
+    for pdb in pdbs:
+        tmp_pdb = "tmp.pdb"
+        clean_pdb(pdb,tmp_pdb)
+        with open(tmp_pdb,"r") as fp:
+            atoms = read_proteindatabank(fp,index=0)
+        symbols = atoms.get_chemical_symbols()
+        atomicno = atoms.get_atomic_numbers()
+        atom_list = _make_atom_list(symbols,atomicno)
+        atom_list.sort(key=lambda tup: tup[2])
+        mol_name = _make_molecule_name(atom_list)
+        fname = Path(f"{mol_name}_{ii:06d}")
+        while fname.with_suffix(".nwi").exists():
+            ii += 1
+            fname = Path(f"{mol_name}_{ii:06d}")
+        name_list.append(fname)
+        # Add the extension for the input file and write the input
+        inpname = fname.with_suffix(".nwi")
+        nwchem_input(inpname,tmp_pdb)
     return name_list
 
 def fetch_input(data: PathLike) -> List[PathLike]:
@@ -99,7 +169,8 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
     inpf -- the name of the input file to be generated
     pdb -- the PDB file containing the chemical structure
     """
-    molecule = ase.io.read(pdb)
+    with open(pdb,"r") as fp:
+        molecule = read_proteindatabank(fp,index=0)
     name = str(inpf).replace(".nwi","_dat")
     fp = open(inpf,"w")
     opts = dict(label=name,
@@ -526,7 +597,6 @@ def nwchem_to_raw(nwofs: List[PathLike]) -> None:
     nwofs -- a list of NWChem output files
     """
     splitter = split_tvt([90.0,10.0,0.0])
-    splitter = split_tvt([2.0,1.0,0.0]) # use this for testing to get validation and training with small data sets
     for nwof in nwofs:
         fp = open(nwof,"r")
         data = read_nwchem_out(fp,slice(-1,None,None))

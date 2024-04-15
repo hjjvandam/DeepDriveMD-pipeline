@@ -17,27 +17,22 @@ from pathlib import Path
 # where the NWChem executable lives.
 nwchem_top = None
 deepmd_source_dir = None
-test_data = Path("../../../../data/h2co/system")
-test_pdb = Path(test_data,"h2co-unfolded.pdb")
-test_inp = "h2co.nwi"
-test_out = "h2co.nwo"
+test_pdbs = Path("../../lammps/test_dir/pdbs")
 test_path = Path("./test_dir")
 curr_path = Path("./")
-os.mkdir(test_path)
 os.chdir(test_path)
 print("Generate NWChem input files")
-inputs_cp = ase_nwchem.fetch_input(test_data)
-inputs_gn = ase_nwchem.perturb_mol(30,test_pdb)
-inputs = inputs_cp + inputs_gn
+inputs = ase_nwchem.gen_new_inputs(test_pdbs)
 print(inputs)
 print("Run NWChem")
+new_list = []
 for instance in inputs:
     test_inp = instance.with_suffix(".nwi")
     test_out = instance.with_suffix(".nwo")
     ase_nwchem.run_nwchem(nwchem_top,test_inp,test_out)
+    new_list.append(test_out)
 print("Extract NWChem results")
-test_dat = glob.glob("*.nwo")
-ase_nwchem.nwchem_to_raw(test_dat)
+ase_nwchem.nwchem_to_raw(new_list)
 print("Convert raw files to NumPy files")
 ase_nwchem.raw_to_deepmd(deepmd_source_dir)
 print("All done")
