@@ -22,6 +22,7 @@ from os import PathLike
 from pathlib import Path, PurePath
 from typing import List, Tuple
 from ase.calculators.nwchem import NWChem
+from ase.calculators.calculator import PropertyNotImplementedError
 from ase.io.nwchem import write_nwchem_in, read_nwchem_out
 from ase.io.proteindatabank import read_proteindatabank, write_proteindatabank
 
@@ -598,21 +599,31 @@ def nwchem_to_raw(nwofs: List[PathLike]) -> None:
     """
     splitter = split_tvt([90.0,10.0,0.0])
     for nwof in nwofs:
-        fp = open(nwof,"r")
-        data = read_nwchem_out(fp,slice(-1,None,None))
-        fp.close()
-        atoms = data[0]
-        calc = atoms.get_calculator()
-        # NWChem DFT energy in eV
-        energy = calc.get_potential_energy()
-        # Chemical symbols of the atoms
-        symbols = atoms.get_chemical_symbols()
-        # Atomic numbers of the atoms
-        atomicno = atoms.get_atomic_numbers()
-        # NWChem atomic positions in Angstrom
-        positions = atoms.get_positions()
-        # NWChem atomic forces in eV/Angstrom
-        forces = calc.get_forces()
+        with open(nwof,"r") as fp:
+            data = read_nwchem_out(fp,slice(-1,None,None))
+        try:
+            atoms = data[0]
+            calc = atoms.get_calculator()
+            # NWChem DFT energy in eV
+            energy = calc.get_potential_energy()
+            # Chemical symbols of the atoms
+            symbols = atoms.get_chemical_symbols()
+            # Atomic numbers of the atoms
+            atomicno = atoms.get_atomic_numbers()
+            # NWChem atomic positions in Angstrom
+            positions = atoms.get_positions()
+            # NWChem atomic forces in eV/Angstrom
+            forces = calc.get_forces()
+        except PropertyNotImplementedError:
+            # If the DFT calculation did not converge then ASE
+            # will raise a PropertyNotImplementedError exception.
+            # In that case we should move the output file (if the
+            # calculation did not converge in 500 iterations then it
+            # is clearly not sensible anyway), and skip to the next
+            # output file.
+            new_path = Path(nwof).with_suffix(".failed")
+            os.replace(nwof,new_path)
+            continue
         atom_list = _make_atom_list(symbols,atomicno)
         atom_list.sort(key=lambda tup: tup[1])
         if len(atom_list) <= 1:
