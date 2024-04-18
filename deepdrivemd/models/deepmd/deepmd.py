@@ -43,12 +43,20 @@ class DeePMDInput(BaseSettings):
                 "sel"           : "auto", # is this new?
                 "rcut_smth"     : 3.0,
                 "rcut"          : 6.0,
-                "neuron"        : [20,40,80],
+                # These hyperparameters came from a Silicon example:
+                # https://github.com/CSIprinceton/workshop-july-2023/tree/main/hands-on-sessions/day-2/4-first-model
+                #"neuron"        : [20,40,80],
+                # These hyperparameters came from a Zn-protein example:
+                # https://github.com/deepmodeling/deepmd-kit/blob/r2/examples/zinc_protein/zinc_se_a_mask.json
+                "neuron"        : [32,32,64,128],
                 #"type_one_side" : True, # does not exist for se_e3, se_at, or se_a_3be and will cause an error
                 "axis_neuron"   : 16,
             },
             "fitting_net" : {
-                "neuron"    : [80,80,80],
+                # These hyperparameters came from a Silicon example:
+                #"neuron"    : [80,80,80],
+                # These hyperparameters came from a Zn-protein example:
+                "neuron"    : [240,240,240],
                 "resnet_dt" : True,
             },
         },
