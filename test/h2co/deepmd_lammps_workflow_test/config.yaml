@@ -1,25 +1,22 @@
-title: NWChem 1FME workflow
-resource: 'ornl.crusher'
+title: LAMMPS-DeePMD H2CO workflow
+resource: 'bnl.ic2'
 queue: batch
 schema_: local
-project: CHM136_crusher
+project: csigeneral
 walltime_min: 180
 max_iteration: 10
-cpus_per_node: 64
+# Source: https://www.sdcc.bnl.gov/information/institutional-cluster-gen2
+cpus_per_node: 48
 gpus_per_node: 4
 hardware_threads_per_cpu: 1
-#hardware_threads_per_cpu: 2
-#hardware_threads_per_cpu: 4
-#hardware_threads_per_cpu: 128
-#experiment_directory: /ccs/home/hjjvd/DeepDriveMD/deepdrivemd_tests/bba_test/test_nwchem
-experiment_directory: /lustre/orion/scratch/hjjvd/chm136/test_nwchem
+experiment_directory: /scratch/hvandam/test_h2co
 node_local_path: null
 molecular_dynamics_stage:
     pre_exec: 
-      - . /ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/activate
-    executable: '/ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/python'
+      - conda activate pydeepmd
+    executable: '/sdcc/u/hvandam/.conda/envs/pydeepmd/bin/python3.12'
     arguments:
-      - /ccs/home/hjjvd/DeepDriveMD/DeepDriveMD-pipeline/deepdrivemd/sim/nwchem/run_nwchem.py 
+      - /sdcc/u/hvandam/DeepDriveMD-pipeline/deepdrivemd/sim/lammps/run_lammps.py 
     cpu_reqs:
         processes: 1
         process_type: null
@@ -31,7 +28,7 @@ molecular_dynamics_stage:
         threads_per_process: 0
         thread_type: null
     #num_tasks: 16
-    num_tasks: 64
+    num_tasks: 48
     task_config:
         experiment_directory: set_by_deepdrivemd
         stage_idx: 0
@@ -39,16 +36,16 @@ molecular_dynamics_stage:
         output_path: set_by_deepdrivemd
         node_local_path: set_by_deepdrivemd
         pdb_file: set_by_deepdrivemd
-        reference_pdb_file: /ccs/home/hjjvd/DeepDriveMD/DeepDriveMD-pipeline/data/bba/1FME-folded-nwchem.pdb
-        initial_pdb_dir: /ccs/home/hjjvd/DeepDriveMD/DeepDriveMD-pipeline/data/bba
+        reference_pdb_file: /sdcc/u/hvandam/DeepDriveMD-pipeline/data/h2co/h2co-folded.pdb
+        initial_pdb_dir: /sdcc/u/hvandam/DeepDriveMD-pipeline/data/h2co
         contact_map: true
         fraction_of_contacts: true
 aggregation_stage:
     pre_exec:
-      - . /ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/activate
-    executable: '/ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/python'
+      - conda activate pydeepmd
+    executable: '/sdcc/u/hvandam/.conda/envs/pydeepmd/bin/python3.12'
     arguments:
-      - /ccs/home/hjjvd/DeepDriveMD/DeepDriveMD-pipeline/deepdrivemd/aggregation/basic/aggregate.py
+      - /sdcc/u/hvandam/DeepDriveMD-pipeline/deepdrivemd/aggregation/basic/aggregate.py
     cpu_reqs:
         processes: 1
         process_type: null
@@ -68,10 +65,10 @@ aggregation_stage:
         node_local_path: set_by_deepdrivemd
 machine_learning_stage:
     pre_exec:
-      - . /ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/activate
-    executable: '/ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/python'
+      - conda activate pydeepmd
+    executable: '/sdcc/u/hvandam/.conda/envs/pydeepmd/bin/python3.12'
     arguments: 
-      - /ccs/home/hjjvd/DeepDriveMD/DeepDriveMD-pipeline/deepdrivemd/models/keras_cvae/train.py
+      - /sdcc/u/hvandam/DeepDriveMD-pipeline/deepdrivemd/models/keras_cvae/train.py
     cpu_reqs:
         processes: 1
         process_type: null
@@ -136,10 +133,10 @@ machine_learning_stage:
         shuffle: true
 model_selection_stage:
     pre_exec:
-      - . /ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/activate
-    executable: '/ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/python'
+      - conda activate pydeepmd
+    executable: '/sdcc/u/hvandam/.conda/envs/pydeepmd/bin/python3.12'
     arguments:
-      - /ccs/home/hjjvd/DeepDriveMD/DeepDriveMD-pipeline/deepdrivemd/selection/latest/select_model.py
+      - /sdcc/u/hvandam/DeepDriveMD-pipeline/deepdrivemd/selection/latest/select_model.py
     cpu_reqs:
         processes: 1
         process_type: null
@@ -159,10 +156,10 @@ model_selection_stage:
         checkpoint_suffix: .h5
 agent_stage:
     pre_exec:
-      - . /ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/activate
-    executable: '/ccs/home/hjjvd/DeepDriveMD/pydeepdrivemd/bin/python'
+      - conda activate pydeepmd
+    executable: '/sdcc/u/hvandam/.conda/envs/pydeepmd/bin/python3.12'
     arguments: 
-      - /ccs/home/hjjvd/DeepDriveMD/DeepDriveMD-pipeline/deepdrivemd/agents/lof/lof.py
+      - /sdcc/u/hvandam/DeepDriveMD-pipeline/deepdrivemd/agents/lof/lof.py
     cpu_reqs:
         processes: 1
         process_type: null
