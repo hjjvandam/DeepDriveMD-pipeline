@@ -178,41 +178,41 @@ def lammps_questionable(force_crit_lo: float, force_crit_hi: float, freq: int) -
             line = fp.readline()
     return (failed, structures)
 
-class lammps_txt_trajectory:
-    """A class to deal with LAMMPS trajectory data in txt format.
-
-    A class instance manages a single trajectory file.
-    - Creating an instance opens the trajectory file.
-    - Destroying an instance closes the trajectory file.
-    - Read will read the next timestep from the trajectory file.
-    """
-    def __init__(self, trj_file: PathLike, pdb_orig: PathLike):
-        """Create a trajectory instance for trj_file.
-
-        This constructor needs the PDB file from which the LAMMPS
-        calculation was generated. In generating the LAMPS input
-        the chemical element information was discarded. This means
-        that the Atoms objects contain chemical nonsense information.
-        By extracting the chemical element information from the 
-        PDB file this information can be restored before returning
-        the Atoms object.
-
-        Arguments:
-        trj_file -- the filename of the trajectory file
-        pdb_orig -- the filename of the PDB file 
-        """
-        self.trj_file = trj_file
-        self.trj_file_it = iread(trj_file,format="lammps-dump-text")
-        atoms = read_proteindatabank(pdb_orig)
-        self.trj_atomicno = atoms.get_atomic_numbers()
-        self.trj_symbols = atoms.get_chemical_symbols()
-
-    def next(self) -> ase.Atoms:
-        atoms = next(self.trj_file_it,None)
-        if atoms:
-            atoms.set_atomic_numbers(self.trj_atomicno)
-            atoms.set_chemical_symbols(self.trj_symbols)
-        return atoms
+#class lammps_txt_trajectory:
+#    """A class to deal with LAMMPS trajectory data in txt format.
+#
+#    A class instance manages a single trajectory file.
+#    - Creating an instance opens the trajectory file.
+#    - Destroying an instance closes the trajectory file.
+#    - Read will read the next timestep from the trajectory file.
+#    """
+#    def __init__(self, trj_file: PathLike, pdb_orig: PathLike):
+#        """Create a trajectory instance for trj_file.
+#
+#        This constructor needs the PDB file from which the LAMMPS
+#        calculation was generated. In generating the LAMPS input
+#        the chemical element information was discarded. This means
+#        that the Atoms objects contain chemical nonsense information.
+#        By extracting the chemical element information from the 
+#        PDB file this information can be restored before returning
+#        the Atoms object.
+#
+#        Arguments:
+#        trj_file -- the filename of the trajectory file
+#        pdb_orig -- the filename of the PDB file 
+#        """
+#        self.trj_file = trj_file
+#        self.trj_file_it = iread(trj_file,format="lammps-dump-text")
+#        atoms = read_proteindatabank(pdb_orig)
+#        self.trj_atomicno = atoms.get_atomic_numbers()
+#        self.trj_symbols = atoms.get_chemical_symbols()
+#
+#    def next(self) -> ase.Atoms:
+#        atoms = next(self.trj_file_it,None)
+#        if atoms:
+#            atoms.set_atomic_numbers(self.trj_atomicno)
+#            atoms.set_chemical_symbols(self.trj_symbols)
+#        return atoms
 
 def lammps_to_pdb(trj_file: PathLike, pdb_file: PathLike, indeces: List[int], data_dir: PathLike):
     """Write timesteps from the LAMMPS DCD format trajectory to PDB files."""
