@@ -46,6 +46,8 @@ class LAMMPSConfig(MolecularDynamicsTaskConfig):
     in_memory: bool = True
     # Directory with the initial PDB file
     initial_pdb_dir: Optional[Path] = None
+    # Directory where the DeePMD models live
+    train_dir: Optional[Path] = None
 
     #@root_validator()
     #def explicit_solvent_requires_top_suffix(
