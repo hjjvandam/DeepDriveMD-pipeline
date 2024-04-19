@@ -11,4 +11,4 @@ DeepDriveMD. In addition
 NWChem, DeePMD, and LAMMPS, 
 * DeePMD is needed for the neural network potentials (both training and evaluation)
 * LAMMPS is needed to run the MD simulations using the neural network potentials
-* TensorFlow is needed to provide the machine learning infrastructure.
+* TensorFlow is needed to provide the machine learning infrastructure (both training and inference)
