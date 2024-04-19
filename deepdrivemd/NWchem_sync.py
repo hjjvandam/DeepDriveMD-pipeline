@@ -311,118 +311,9 @@ class DDMD(object):
 
         # start ab-initio loop
         self.stage = 1
-        self._ab_initio(self.TASK_DFT, series=1)
-
-    # def control_exec(self, rules = None):
-    #     if rules["stage"] < 0:
-    #         self.dump("Stage cannot be negatif there is an error")
-    #         self.stop()
-
-    #     if self._avail_cores >= rules["n_cpus"] and self._avail_gpus >= rules["n_gpus"]:
-    #         self._submit_task(rules)
-    #     else:
-    #         #FIXME OK this is hard I need to think  about this a bit more for know there will be multiple controler
+        self._submit_task(self.TASK_DFT, ...)
 
 
-
-
-
-    # --------------------------------------------------------------------------
-    # FIXME:This is also not needed
-    def _ab_initio(self, ttype, series):
-
-
-        # Ab-Inito tasks only uses CPU
-
-        self.dump('next ab-initio iter: requested')
-
-        # FIXME OK: currently we assume only 1 CPU per task
-        # To fix this we need to ask user to define how may cpus 1 task may use.
-        n_tasks = self._cores
-
-        if ttype == self.TASK_TRAIN_FF:
-            if self.stage == 2:
-                n_tasks = int(math.floor((self._cores - self._ddmd_tasks)/2))
-            self._submit_task(self.TASK_MD_AI, n=n_tasks, series=1)
-            return
-
-        if ttype == self.TASK_DFT:
-            if self.stage == 2:
-                n_tasks = int(math.floor((self._cores - self._ddmd_tasks)/2))
-
-            for i in range(4):
-                self._submit_task(self.TASK_TRAIN_FF, n=1, series=1, argvals="train{}".format(i))#FIXME argvals needs to be 4
-            return
-
-
-        self._iter += 1
-
-        uids = list()
-        for series in self._series:
-            for ttype in self._tasks[series]:
-                if ttype in [self.TASK_MD_DDMD, self.TASK_TRAIN_MODEL,
-                             self.TASK_AGENT,   self.TASK_SELECT]:
-                    continue
-                uids.extend(self._tasks[series][ttype].keys())
-
-        # cancel necessary tasks from ab-initio iteration
-        if self._iter == self.ITER_DDMD_1:
-            self.dump('ab-initio iter Partially Satisfy: Start DDMD1')
-
-
-            tts  = list(self._tasks[series][self.TASK_TRAIN_FF].keys())
-            dtfs = list(self._tasks[series][self.TASK_DFT].keys())
-
-            # to_cancel  = int(math.floor(len(uids) / 2))
-            to_cancel = int(math.floor((self._cores - self._ddmd_tasks)/2))
-
-            self.dump('Number of tasks to CANCEL: %s' % to_cancel)
-            self._ddmd_tasks = to_cancel
-
-            if len(dtfs) >= to_cancel:
-                random_uids = random.sample(dtfs, to_cancel)
-                self._cancel_tasks(random_uids)
-
-            else:
-                self._cancel_tasks(dtfs)
-                to_cancel = to_cancel - len(dtfs)
-
-                if len(tts) >= to_cancel:
-                    random_uids = random.sample(tts, to_cancel)
-                    self._cancel_tasks(random_uids)
-
-                else:
-                    self._cancel_tasks(tts)
-
-            # we use use 50% of resources for DDMD tasks now
-            # (other 50% are reserved for ab-initio)
-            self.stage = 2
-
-            # self._submit_task(self.TASK_TRAIN_MODEL, n=self._ddmd_tasks, series=1)
-            self.control_DDMD(self.TASK_MD_DDMD, series=1)
-
-
-        elif self._iter >= self.ITER_DDMD_2:
-            self.dump('Ab-initio Is done Start DDMD2')
-
-
-            self._cancel_tasks(uids)
-
-            # ab-initio completed, we use up to 100% for MD tasks
-            self.stage =3
-
-            # self._submit_task(self.TASK_TRAIN_MODEL, n=self._ddmd_tasks, series=2)
-            self.control_DDMD(self.TASK_MD_DDMD, series=2)
-            return
-
-
-        # If I reach hear I will start next batch of DFT tasks (assume one core per task)
-        # FIXME: task numbers
-        n_tasks = self._cores - self._ddmd_tasks
-        self._submit_task(self.TASK_DFT, n=n_tasks, series=1)
-
-        self.dump('next ab-initio iter: started %s DFT'
-                  % (self._cores - self._cores_used))
 
 
     # --------------------------------------------------------------------------
@@ -763,5 +654,5 @@ class DDMD(object):
 # ------------------------------------------------------------------------------
 #
 if __name__ == '__main__':
-
+    self.start()
 # ------------------------------------------------------------------------------
