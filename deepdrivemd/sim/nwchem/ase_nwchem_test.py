@@ -27,7 +27,7 @@ os.mkdir(test_path)
 os.chdir(test_path)
 print("Generate NWChem input files")
 inputs_cp = ase_nwchem.fetch_input(test_data)
-inputs_gn = ase_nwchem.perturb_mol(50,test_pdb)
+inputs_gn = ase_nwchem.perturb_mol(200,test_pdb)
 inputs = inputs_cp + inputs_gn
 print(inputs)
 print("Run NWChem")
