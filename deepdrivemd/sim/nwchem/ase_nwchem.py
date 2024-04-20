@@ -182,6 +182,7 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
                          odft=None,
                          direct=None,
                          maxiter=500,
+                         mulliken=None,
                          noprint="\"final vectors analysis\""),
                 theory="dft")
                 
