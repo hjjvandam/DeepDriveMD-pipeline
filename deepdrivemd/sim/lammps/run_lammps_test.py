@@ -18,5 +18,7 @@ os.mkdir(test_dir)
 os.chdir(test_dir)
 
 config = LAMMPSConfig()
+config.output_path = test_dir
+config.pdb_file = pdb
 config.dump_yaml("config.yaml")
-subprocess.run([python_exec,"../run_lammps.py"])
+subprocess.run([python_exec,"../run_lammps.py","--config","config.yaml"])
