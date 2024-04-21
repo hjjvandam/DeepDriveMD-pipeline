@@ -611,9 +611,9 @@ def nwchem_to_raw(nwofs: List[PathLike]) -> None:
     """
     splitter = split_tvt([90.0,10.0,0.0])
     for nwof in nwofs:
-        with open(nwof,"r") as fp:
-            data = read_nwchem_out(fp,slice(-1,None,None))
         try:
+            with open(nwof,"r") as fp:
+                data = read_nwchem_out(fp,slice(-1,None,None))
             atoms = data[0]
             calc = atoms.get_calculator()
             # NWChem DFT energy in eV
@@ -626,10 +626,17 @@ def nwchem_to_raw(nwofs: List[PathLike]) -> None:
             positions = atoms.get_positions()
             # NWChem atomic forces in eV/Angstrom
             forces = calc.get_forces()
-        except PropertyNotImplementedError:
+        except (PropertyNotImplementedError, ValueError):
+            # If the geometry has atoms too close together NWChem
+            # will detect this and refuse to run a calculation on
+            # an unphysical (which will most fail badly if it was
+            # run due to numerical issues stemming from massive
+            # linear dependencies in the basis set).
+            #
             # If the DFT calculation did not converge then ASE
             # will raise a PropertyNotImplementedError exception.
-            # In that case we should move the output file (if the
+            #
+            # In these cases we should move the output file (if the
             # calculation did not converge in 500 iterations then it
             # is clearly not sensible anyway), and skip to the next
             # output file.
