@@ -13,6 +13,7 @@ In general this should be simple:
 # needs to train by the DeePMD-kit developers.
 import ase 
 import glob
+import numpy
 import os
 import random
 import shutil
@@ -49,6 +50,13 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
     number -- the number of perturbed structure to generate
     pdb -- the PDB file with the initial molecular structure
     """
+    # Create a random number generator instance. 
+    # We need to pass this to rattle, otherwise rattle 
+    # internally creates and seeds its own random
+    # number generator. Because this freezes the
+    # random number sequence every call to rattle does
+    # the exact same thing (not very random at all).
+    random = numpy.random.default_rng()
     with open(pdb,"r") as fp:
         atoms = read_proteindatabank(pdb,index=0)
     symbols = atoms.get_chemical_symbols()
@@ -58,8 +66,11 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
     mol_name = _make_molecule_name(atom_list)
     name_list = []
     for ii in range(number):
+         with open(pdb,"r") as fp:
+             atoms = read_proteindatabank(pdb,index=0)
          # Perturb the atom positions
-         atoms.rattle(stdev=0.1)
+         if ii != 0:
+             atoms.rattle(stdev=1.00,rng=random)
          tmpfile = Path("./tmp.pdb")
          with open(tmpfile,"w") as fp:
              write_proteindatabank(fp,atoms)
