@@ -18,8 +18,6 @@
 #
 
 # This one will run synchronously
-
-
 import os
 import math, sys, argparse
 import json
@@ -33,25 +31,45 @@ from collections import defaultdict
 import radical.pilot as rp
 import radical.utils as ru
 
+import itertools
+import shutil
+from pathlib import Path
+from typing import List, Optional
+
+
+from deepdrivemd.config import BaseStageConfig, ExperimentConfig
+from deepdrivemd.data.api import DeepDriveMD_API
+from deepdrivemd.utils import parse_args
+
 
 # ------------------------------------------------------------------------------
-#
+# This is the main class
+# TODO: Maybe we need a base class and multiple classes for DDMD and AB-INITIO
 class DDMD(object):
 
     # define task types (used as prefix on task-uid)
+    # AB-INITIO TASKS
     TASK_TRAIN_FF   = 'task_train_ff'   # AB-initio-FF-training
-    TASK_DDMD       = 'task_ddmd'       # DDMD Entire loop
     TASK_MD         = 'task_md'         # AB-initio MD-simulation
     TASK_DFT1       = 'task_dft1'       # Ab-inito DFT prep
     TASK_DFT2       = 'task_dft'        # Ab-inito DFT calculation
     TASK_DFT3       = 'task_dft'        # Ab-inito DFT finalize
+    # DDMD TASKS
+    TASK_DDMD_MD        = 'task_ddmd_md'        # DDMD MD-Simulation
+    TASK_DDMD_TRAIN     = 'task_ddmd_train'     # DDMD Training
+    TASK_DDMD_SELECTION = 'task_ddmd_selection' # DDMD Selection
+    TASK_DDMD_AGENT     = 'task_ddmd_agent'     # DDMD Agent
 
     TASK_TYPES       = [TASK_TRAIN_FF,
                         TASK_DDMD,
                         TASK_MD,
                         TASK_DFT1,
                         TASK_DFT2,
-                        TASK_DFT3]
+                        TASK_DFT3,
+                        TASK_DDMD_MD,
+                        TASK_DDMD_TRAIN,
+                        TASK_DDMD_SELECTION,
+                        TASK_DDMD_AGENT]
 
     # these alues fall from heaven....
     # We need to have a swich condition here.
@@ -79,19 +97,25 @@ class DDMD(object):
     def __init__(self):
 
         # control flow table
-        self._protocol = {self.TASK_TRAIN_FF    : self._control_train_ff ,
-                          self.TASK_DDMD        : self._control_ddmd     ,
-                          self.TASK_MD          : self._control_md       ,
-                          self.TASK_DFT1        : self._control_dft1     ,
-                          self.TASK_DFT2        : self._control_dft2     ,
-                          self.TASK_DFT3        : self._control_dft3      }
+        self._protocol = {self.TASK_TRAIN_FF        : self._control_train_ff ,
+                          self.TASK_MD              : self._control_md       ,
+                          self.TASK_DFT1            : self._control_dft1     ,
+                          self.TASK_DFT2            : self._control_dft2     ,
+                          self.TASK_DFT3            : self._control_dft3     ,
+                          self.TASK_DDMD_MD         : self._control_ddmd     ,
+                          self.TASK_DDMD_TRAIN      : self._control_ddmd     ,
+                          self.TASK_DDMD_SELECTION  : self._control_ddmd     ,
+                          self.TASK_DDMD_AGENT      : self._control_ddmd     }
 
-        self._glyphs   = {self.TASK_TRAIN_FF    : 't',
-                          self.TASK_DDMD        : 'D',
-                          self.TASK_MD          : 's',
-                          self.TASK_DFT1        : 'd'}
-                          self.TASK_DFT2        : 'd'}
-                          self.TASK_DFT3        : 'd'}
+        self._glyphs   = {self.TASK_TRAIN_FF        : 't',
+                          self.TASK_MD              : 'm',
+                          self.TASK_DFT1            : 'i',
+                          self.TASK_DFT2            : 'd',
+                          self.TASK_DFT3            : 'e',
+                          self.TASK_DDMD_MD         : 'M',
+                          self.TASK_DDMD_TRAIN      : 'T',
+                          self.TASK_DDMD_SELECTION  : 'S',
+                          self.TASK_DDMD_AGENT      : 'A',
 
         # bookkeeping
         # FIXME There are lots off un used item here
@@ -142,15 +166,284 @@ class DDMD(object):
         self.set_argparse()
         self.get_json()
 
-    # --------------------------------------------------------------------------
-    #
+        #set aditional DDMD related setups:
 
-    def set_resource(self, res_desc):
-        self.resource_desc = res_desc
+        #FIXME: Makesure the names are not conflicting with others
+        args = parse_args()
+        cfg = ExperimentConfig.from_yaml(args.config)
+
+        # Calculate total number of nodes required.
+        # If gpus_per_node is 0, then we assume that the CPU is used for
+        # simulation, in which case we request a node per simulation task.
+        # Otherwise, we assume that each simulation task uses a single GPU.
+        if cfg.gpus_per_node == 0:
+            num_nodes = cfg.molecular_dynamics_stage.num_tasks
+        else:
+            num_nodes, extra_gpus = divmod(
+                cfg.molecular_dynamics_stage.num_tasks, cfg.gpus_per_node
+            )
+            # If simulations don't pack evenly onto nodes, add an extra node
+            num_nodes += int(extra_gpus > 0)
+
+        num_nodes = max(1, num_nodes)
+
+        #FIXME maybe we can use this but we need to be carefull here.
+        ddmd_pilot_desc = rp.PilotDescription.({
+            "resource": cfg.resource,
+            "queue": cfg.queue,
+            "access_schema": cfg.schema_,
+            "walltime": cfg.walltime_min,
+            "project": cfg.project,
+            "cpus": cfg.cpus_per_node * cfg.hardware_threads_per_cpu * num_nodes,
+            "gpus": cfg.gpus_per_node * num_nodes})
+
+        api = DeepDriveMD_API(cfg.experiment_directory)
 
     # --------------------------------------------------------------------------
-    #
-    def set_argparse(self):
+    # --------------------------------------------------------------------------
+    # ---------FUNCINALITIES FROM DDME------------------------------------------
+    # --------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
+    # this needs to converted to the RP task:
+    #TODO check with Andre.
+    def generate_task(cfg: BaseStageConfig) -> Task:
+        task = Task()
+        task.cpu_reqs = cfg.cpu_reqs.dict().copy()
+        task.gpu_reqs = cfg.gpu_reqs.dict().copy()
+        task.pre_exec = cfg.pre_exec.copy()
+        task.executable = cfg.executable
+        task.arguments = cfg.arguments.copy()
+        return task
+
+
+
+
+    def _init_experiment_dir(self) -> None:
+        # Make experiment directories
+        self.cfg.experiment_directory.mkdir()
+        self.api.molecular_dynamics_stage.runs_dir.mkdir()
+        self.api.aggregation_stage.runs_dir.mkdir()
+        self.api.machine_learning_stage.runs_dir.mkdir()
+        self.api.model_selection_stage.runs_dir.mkdir()
+        self.api.agent_stage.runs_dir.mkdir()
+
+#FIXME Probably neeed to delete this one but I am not sure since it is checking max iteration
+    def func_condition(self) -> None:
+        if self.stage_idx < self.cfg.max_iteration:
+            self.func_on_true()
+        else:
+            self.func_on_false()
+
+#FIXME we definitly dont need following
+#    def func_on_true(self) -> None:
+#        print(f"Finishing stage {self.stage_idx} of {self.cfg.max_iteration}")
+#        self._generate_pipeline_iteration()
+#
+#    def func_on_false(self) -> None:
+#        print("Done")
+#
+#    def _generate_pipeline_iteration(self) -> None:
+#
+#        self.pipeline.add_stages(self.generate_molecular_dynamics_stage())
+#
+#        if not cfg.aggregation_stage.skip_aggregation:
+#            self.pipeline.add_stages(self.generate_aggregating_stage())
+#
+#        if self.stage_idx % cfg.machine_learning_stage.retrain_freq == 0:
+#            self.pipeline.add_stages(self.generate_machine_learning_stage())
+#        self.pipeline.add_stages(self.generate_model_selection_stage())
+#
+#        agent_stage = self.generate_agent_stage()
+#        agent_stage.post_exec = self.func_condition
+#        self.pipeline.add_stages(agent_stage)
+#
+#        self.stage_idx += 1
+#
+#    def generate_pipelines(self) -> List[Pipeline]:
+#        self._generate_pipeline_iteration()
+#        return [self.pipeline]
+
+#    def generate_molecular_dynamics_stage(self) -> Stage:
+    def generate_molecular_dynamics_stage(self):
+#        stage = Stage()
+#        stage.name = self.MOLECULAR_DYNAMICS_STAGE_NAME
+        # I created a List instead of the Stage
+        tasks =[]
+        cfg = self.cfg.molecular_dynamics_stage
+        stage_api = self.api.molecular_dynamics_stage
+
+        if self.stage_idx == 0:
+            initial_pdbs = self.api.get_initial_pdbs(cfg.task_config.initial_pdb_dir)
+            filenames: Optional[itertools.cycle[Path]] = itertools.cycle(initial_pdbs)
+        else:
+            filenames = None
+
+        for task_idx in range(cfg.num_tasks):
+
+            output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
+            assert output_path is not None
+
+            # Update base parameters
+            cfg.task_config.experiment_directory = self.cfg.experiment_directory
+            cfg.task_config.stage_idx = self.stage_idx
+            cfg.task_config.task_idx = task_idx
+            cfg.task_config.node_local_path = self.cfg.node_local_path
+            cfg.task_config.output_path = output_path
+            if self.stage_idx == 0:
+                assert filenames is not None
+                cfg.task_config.pdb_file = next(filenames)
+            else:
+                cfg.task_config.pdb_file = None
+
+            cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+            assert cfg_path is not None
+            cfg.task_config.dump_yaml(cfg_path)
+            task = generate_task(cfg)
+            task.arguments += ["-c", cfg_path.as_posix()]
+#            stage.add_tasks(task)
+            # here we add the task to tasks instead of the stage
+            tasks.add(task)
+
+#        return stage
+        return tasks
+
+#    def generate_aggregating_stage(self) -> Stage:
+    def generate_aggregating_stage(self):
+#        stage = Stage()
+#        stage.name = self.AGGREGATION_STAGE_NAME
+
+        tasks =[]
+
+        cfg = self.cfg.aggregation_stage
+        stage_api = self.api.aggregation_stage
+
+        task_idx = 0
+        output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
+        assert output_path is not None
+
+        # Update base parameters
+        cfg.task_config.experiment_directory = self.cfg.experiment_directory
+        cfg.task_config.stage_idx = self.stage_idx
+        cfg.task_config.task_idx = task_idx
+        cfg.task_config.node_local_path = self.cfg.node_local_path
+        cfg.task_config.output_path = output_path
+
+        # Write yaml configuration
+        cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+        assert cfg_path is not None
+        cfg.task_config.dump_yaml(cfg_path)
+        task = generate_task(cfg)
+        task.arguments += ["-c", cfg_path.as_posix()]
+        tasks.add(task)
+#        stage.add_tasks(task)
+
+#        return stage
+        return tasks
+
+#    def generate_machine_learning_stage(self) -> Stage:
+    def generate_machine_learning_stage(self):
+#        stage = Stage()
+#        stage.name = self.MACHINE_LEARNING_STAGE_NAME
+        cfg = self.cfg.machine_learning_stage
+        stage_api = self.api.machine_learning_stage
+
+        tasks = []
+
+        task_idx = 0
+        output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
+        assert output_path is not None
+
+        # Update base parameters
+        cfg.task_config.experiment_directory = self.cfg.experiment_directory
+        cfg.task_config.stage_idx = self.stage_idx
+        cfg.task_config.task_idx = task_idx
+        cfg.task_config.node_local_path = self.cfg.node_local_path
+        cfg.task_config.output_path = output_path
+        cfg.task_config.model_tag = stage_api.unique_name(output_path)
+        if self.stage_idx > 0:
+            # Machine learning should use model selection API
+            cfg.task_config.init_weights_path = None
+
+        # Write yaml configuration
+        cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+        assert cfg_path is not None
+        cfg.task_config.dump_yaml(cfg_path)
+        task = generate_task(cfg)
+        task.arguments += ["-c", cfg_path.as_posix()]
+#        stage.add_tasks(task)
+        tasks.add(task)
+
+#        return stage
+        return tasks
+
+#    def generate_model_selection_stage(self) -> Stage:
+    def generate_model_selection_stage(self):
+#        stage = Stage()
+#        stage.name = self.MODEL_SELECTION_STAGE_NAME
+        cfg = self.cfg.model_selection_stage
+        stage_api = self.api.model_selection_stage
+
+        tasks = []
+
+        task_idx = 0
+        output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
+        assert output_path is not None
+
+        # Update base parameters
+        cfg.task_config.experiment_directory = self.cfg.experiment_directory
+        cfg.task_config.stage_idx = self.stage_idx
+        cfg.task_config.task_idx = task_idx
+        cfg.task_config.node_local_path = self.cfg.node_local_path
+        cfg.task_config.output_path = output_path
+
+        # Write yaml configuration
+        cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+        assert cfg_path is not None
+        cfg.task_config.dump_yaml(cfg_path)
+        task = generate_task(cfg)
+        task.arguments += ["-c", cfg_path.as_posix()]
+#        stage.add_tasks(task)
+
+        tasks.add(task)
+
+#        return stage
+        return tasks
+
+#    def generate_agent_stage(self) -> Stage:
+    def generate_agent_stage(self):
+#        stage = Stage()
+#        stage.name = self.AGENT_STAGE_NAME
+        cfg = self.cfg.agent_stage
+        stage_api = self.api.agent_stage
+
+        tasks = []
+
+        task_idx = 0
+        output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
+        assert output_path is not None
+
+        # Update base parameters
+        cfg.task_config.experiment_directory = self.cfg.experiment_directory
+        cfg.task_config.stage_idx = self.stage_idx
+        cfg.task_config.task_idx = task_idx
+        cfg.task_config.node_local_path = self.cfg.node_local_path
+        cfg.task_config.output_path = output_path
+
+        # Write yaml configuration
+        cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+        assert cfg_path is not None
+        cfg.task_config.dump_yaml(cfg_path)
+        task = generate_task(cfg)
+        task.arguments += ["-c", cfg_path.as_posix()]
+#        stage.add_tasks(task)
+        tasks.add[task]
+#        return stage
+        return tasks
+
+
+
+    # --------------------------------------------------------------------------
+        def set_argparse(self):
         parser = argparse.ArgumentParser(description="NWChem - DeepDriveMD Synchronous")
         #FIXME Delete unneded ones and add the ones we need.
         parser.add_argument('--num_phases', type=int, default=3,
@@ -202,6 +495,7 @@ class DDMD(object):
 
         args = parser.parse_args()
         self.args = args
+
     # FIXME: This is unused now but we may want to use  a json file in the future
     def get_json(self):
         json_file = "{}/launch-scripts/{}".format(self.args.work_dir, self.args.io_json_file)
@@ -378,6 +672,8 @@ class DDMD(object):
             for _ in range(n):
 
                 tds.append(rp.TaskDescription({
+                           'pre_exec'   : ['. %s/bin/activate' % ve_path,
+                                           'pip install pyyaml'], #FIXME: give correct environment name
                            'uid'            : ttype,
                            'ranks'          : 1
                            'cores_per_rank' : cpu,
