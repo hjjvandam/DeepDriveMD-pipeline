@@ -205,7 +205,7 @@ class DDMD(object):
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     # this needs to converted to the RP task:
-    #TODO check with Andre.
+    #TODO Andre.
     def generate_task(cfg: BaseStageConfig) -> Task:
         task = Task()
         task.cpu_reqs = cfg.cpu_reqs.dict().copy()
@@ -217,7 +217,7 @@ class DDMD(object):
 
 
 
-
+#we don't need this
     def _init_experiment_dir(self) -> None:
         # Make experiment directories
         self.cfg.experiment_directory.mkdir()
@@ -263,6 +263,12 @@ class DDMD(object):
 #        self._generate_pipeline_iteration()
 #        return [self.pipeline]
 
+
+
+
+
+
+    #TODO Andre.
 #    def generate_molecular_dynamics_stage(self) -> Stage:
     def generate_molecular_dynamics_stage(self):
 #        stage = Stage()
@@ -307,6 +313,7 @@ class DDMD(object):
 #        return stage
         return tasks
 
+    #TODO Andre.
 #    def generate_aggregating_stage(self) -> Stage:
     def generate_aggregating_stage(self):
 #        stage = Stage()
@@ -340,6 +347,7 @@ class DDMD(object):
 #        return stage
         return tasks
 
+    #TODO Andre.
 #    def generate_machine_learning_stage(self) -> Stage:
     def generate_machine_learning_stage(self):
 #        stage = Stage()
@@ -376,6 +384,7 @@ class DDMD(object):
 #        return stage
         return tasks
 
+    #TODO Andre.
 #    def generate_model_selection_stage(self) -> Stage:
     def generate_model_selection_stage(self):
 #        stage = Stage()
@@ -409,6 +418,7 @@ class DDMD(object):
 #        return stage
         return tasks
 
+    #TODO Andre.
 #    def generate_agent_stage(self) -> Stage:
     def generate_agent_stage(self):
 #        stage = Stage()
@@ -634,6 +644,7 @@ class DDMD(object):
     # --------------------------------------------------------------------------
     #
     # FIXME: we need to consider this again  with new model.
+    #TODO Andre.
     def _submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals=''):
         '''
         submit 'n' new tasks of specified type
