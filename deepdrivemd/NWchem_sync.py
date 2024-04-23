@@ -206,15 +206,15 @@ class DDMD(object):
     # --------------------------------------------------------------------------
     # this needs to converted to the RP task:
     #TODO Andre.
-    def generate_task(cfg: BaseStageConfig) -> Task:
-        task = Task()
-        task.cpu_reqs = cfg.cpu_reqs.dict().copy()
-        task.gpu_reqs = cfg.gpu_reqs.dict().copy()
-        task.pre_exec = cfg.pre_exec.copy()
-        task.executable = cfg.executable
-        task.arguments = cfg.arguments.copy()
-        return task
-
+    def generate_task_description(cfg: BaseStageConfig) -> rp.TaskDescription:
+        td = rp.TaskDescription()
+        td.ranks          = cfg.cpu_reqs.cpu_processes
+        td.cores_per_rank = cfg.cpu_reqs.cpu_threads
+        td.gpus_per_rank  = cfg.gpu_reqs.gpu_processes
+        td.pre_exec       = copy.deepcopy(cfg.pre_exec)
+        td.executable     = copy.deepcopy(cfg.executable)
+        td.arguments      = copy.deepcopy(cfg.arguments)
+        return td
 
 
 #we don't need this
@@ -274,7 +274,7 @@ class DDMD(object):
 #        stage = Stage()
 #        stage.name = self.MOLECULAR_DYNAMICS_STAGE_NAME
         # I created a List instead of the Stage
-        tasks =[]
+        tds =[]
         cfg = self.cfg.molecular_dynamics_stage
         stage_api = self.api.molecular_dynamics_stage
 
@@ -304,22 +304,18 @@ class DDMD(object):
             cfg_path = stage_api.config_path(self.stage_idx, task_idx)
             assert cfg_path is not None
             cfg.task_config.dump_yaml(cfg_path)
-            task = generate_task(cfg)
-            task.arguments += ["-c", cfg_path.as_posix()]
-#            stage.add_tasks(task)
-            # here we add the task to tasks instead of the stage
-            tasks.add(task)
+            td = generate_task_description(cfg)
+            td.arguments += ["-c", cfg_path.as_posix()]
+            tds.append(td)
 
 #        return stage
-        return tasks
+        return tds
 
     #TODO Andre.
 #    def generate_aggregating_stage(self) -> Stage:
     def generate_aggregating_stage(self):
 #        stage = Stage()
 #        stage.name = self.AGGREGATION_STAGE_NAME
-
-        tasks =[]
 
         cfg = self.cfg.aggregation_stage
         stage_api = self.api.aggregation_stage
@@ -339,13 +335,9 @@ class DDMD(object):
         cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
-        task = generate_task(cfg)
-        task.arguments += ["-c", cfg_path.as_posix()]
-        tasks.add(task)
-#        stage.add_tasks(task)
-
-#        return stage
-        return tasks
+        td = generate_task_description(cfg)
+        td.arguments += ["-c", cfg_path.as_posix()]
+        return [td]
 
     #TODO Andre.
 #    def generate_machine_learning_stage(self) -> Stage:
@@ -354,8 +346,6 @@ class DDMD(object):
 #        stage.name = self.MACHINE_LEARNING_STAGE_NAME
         cfg = self.cfg.machine_learning_stage
         stage_api = self.api.machine_learning_stage
-
-        tasks = []
 
         task_idx = 0
         output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
@@ -376,13 +366,9 @@ class DDMD(object):
         cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
-        task = generate_task(cfg)
-        task.arguments += ["-c", cfg_path.as_posix()]
-#        stage.add_tasks(task)
-        tasks.add(task)
-
-#        return stage
-        return tasks
+        td = generate_task_description(cfg)
+        td.arguments += ["-c", cfg_path.as_posix()]
+        return [td]
 
     #TODO Andre.
 #    def generate_model_selection_stage(self) -> Stage:
@@ -392,8 +378,6 @@ class DDMD(object):
         cfg = self.cfg.model_selection_stage
         stage_api = self.api.model_selection_stage
 
-        tasks = []
-
         task_idx = 0
         output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
         assert output_path is not None
@@ -409,14 +393,9 @@ class DDMD(object):
         cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
-        task = generate_task(cfg)
-        task.arguments += ["-c", cfg_path.as_posix()]
-#        stage.add_tasks(task)
-
-        tasks.add(task)
-
-#        return stage
-        return tasks
+        td = generate_task_description(cfg)
+        td.arguments += ["-c", cfg_path.as_posix()]
+        return [td]
 
     #TODO Andre.
 #    def generate_agent_stage(self) -> Stage:
@@ -426,8 +405,6 @@ class DDMD(object):
         cfg = self.cfg.agent_stage
         stage_api = self.api.agent_stage
 
-        tasks = []
-
         task_idx = 0
         output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
         assert output_path is not None
@@ -443,12 +420,9 @@ class DDMD(object):
         cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
-        task = generate_task(cfg)
-        task.arguments += ["-c", cfg_path.as_posix()]
-#        stage.add_tasks(task)
-        tasks.add[task]
-#        return stage
-        return tasks
+        td = generate_task_description(cfg)
+        td.arguments += ["-c", cfg_path.as_posix()]
+        return [td]
 
 
 
@@ -653,45 +627,36 @@ class DDMD(object):
               for a random number (0..3) of seconds.
         '''
 
-        # with self._lock:
+        # NOTE: ttype can be a task description or a string.  In the first case,
+        #       we submit `n` tasks with that description.  In the second case,
+        #       we construct the task description from the remaining arguments
+        #       and the ttype string
 
-        #     tds   = list()
-        #     for _ in range(n):
+        if isinstance(ttype, rp.TaskDescription):
+            tds = [ttype] * n
+            for td in tds:
+                td.uid = ru.generate_id(ttype)
 
-        #         t_sleep = int(random.randint(0,30) / 10) + 3
-        #         result  = int(random.randint(0,10) /  1)
+        elif isinstance(ttype, str):
 
-        #         uid = ru.generate_id('%s.%03d' % (ttype, self._iter))
-        #         tds.append(rp.TaskDescription({
-        #                    'uid'          : uid,
-        #                    'cpu_processes': cpu,
-        #                    'gpus'         : gpu,
-        #                    'executable'   : '/bin/sh',
-        #                    'arguments'    : ['-c', 'sleep %s; echo %s %s' %
-        #                                            (t_sleep, result, args)]
-        #                    }))
-
-        #     tasks = self._tmgr.submit_tasks(tds)
-
-        # NOTE Here I will try to add all Mini-app tasks
-
-        cur_args = self.get_arguments(ttype, argument_val=argvals)
-
-        with self._lock:
-
-            tds   = list()
+            cur_args = self.get_arguments(ttype, argument_val=argvals)
+            tds = list()
             for _ in range(n):
+
+                # FIXME: uuid=ttype won't work - the uid needs to be *unique*
 
                 tds.append(rp.TaskDescription({
                            'pre_exec'   : ['. %s/bin/activate' % ve_path,
                                            'pip install pyyaml'], #FIXME: give correct environment name
-                           'uid'            : ttype,
+                           'uid'            : ru.generate_id(ttype),
                            'ranks'          : 1
                            'cores_per_rank' : cpu,
                            'gpus_per_rank'  : gpu,
                            'executable'     : 'python',
                            'arguments'      : cur_args
                            }))
+
+        with self._lock:
 
             tasks = self._tmgr.submit_tasks(tds)
 
@@ -869,6 +834,7 @@ class DDMD(object):
             with open (self.args.yaml, 'a') as f:
                 self.printYAML(cpus=cpus, gpus=gpus, sim=sim) #FIXME
 
+            # FIXME: ttype is not defined here
             self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
         else:
             self._submit_task(self, self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
@@ -956,6 +922,7 @@ class DDMD(object):
         with open (self.args.yaml, 'a') as f:
             self.printYAML(cpus=cpus, gpus=gpus, sim=sim) #FIXME
 
+        # FIXME: ttype is not defined here
         self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
 
 # ------------------------------------------------------------------------------
