@@ -97,15 +97,15 @@ class DDMD(object):
     def __init__(self):
 
         # control flow table
-        self._protocol = {self.TASK_TRAIN_FF        : self._control_train_ff ,
-                          self.TASK_MD              : self._control_md       ,
-                          self.TASK_DFT1            : self._control_dft1     ,
-                          self.TASK_DFT2            : self._control_dft2     ,
-                          self.TASK_DFT3            : self._control_dft3     ,
-                          self.TASK_DDMD_MD         : self._control_ddmd     ,
-                          self.TASK_DDMD_TRAIN      : self._control_ddmd     ,
-                          self.TASK_DDMD_SELECTION  : self._control_ddmd     ,
-                          self.TASK_DDMD_AGENT      : self._control_ddmd     }
+        self._protocol = {self.TASK_TRAIN_FF        : self._control_train_ff        ,
+                          self.TASK_MD              : self._control_md              ,
+                          self.TASK_DFT1            : self._control_dft1            ,
+                          self.TASK_DFT2            : self._control_dft2            ,
+                          self.TASK_DFT3            : self._control_dft3            ,
+                          self.TASK_DDMD_MD         : self._control_ddmd_md         ,
+                          self.TASK_DDMD_TRAIN      : self._control_ddmd_train      ,
+                          self.TASK_DDMD_SELECTION  : self._control_ddmd_selection  ,
+                          self.TASK_DDMD_AGENT      : self._control_ddmd_agent      }
 
         self._glyphs   = {self.TASK_TRAIN_FF        : 't',
                           self.TASK_MD              : 'm',
@@ -306,12 +306,20 @@ class DDMD(object):
             cfg.task_config.dump_yaml(cfg_path)
             td = generate_task_description(cfg)
             td.arguments += ["-c", cfg_path.as_posix()]
+            #FIXME ANDRE can you check if this makes sense?
+            #TODO ANDRE also do you think if there is a issue submitting tasks back to back here
+            #           versus using n=cfg.num_tasks?
+            #           I submit a single task here in a loop since
+            #           it is setting taskid and probably output_path for each task
+            td.uid = self.TASK_DDMD_MD
+            self._submit_task(td, series = 1)
             tds.append(td)
 
 #        return stage
         return tds
 
     #TODO Andre.
+    #TODO HUUB:  DO we have aggregation  stage?
 #    def generate_aggregating_stage(self) -> Stage:
     def generate_aggregating_stage(self):
 #        stage = Stage()
@@ -337,6 +345,10 @@ class DDMD(object):
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
+        #FIXME ANDRE can you check if this makes sense?
+        td.uid = self.TASK_DDMD_SELECTION
+        self._submit_task(td, series = 1)
+
         return [td]
 
     #TODO Andre.
@@ -367,7 +379,10 @@ class DDMD(object):
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
-        td.arguments += ["-c", cfg_path.as_posix()]
+        td.arguments += ["-c", cfg_path.as_posiix()]
+        #FIXME ANDRE can you check if this makes sense?
+        td.uid = self.TASK_DDMD_TRAIN
+        self._submit_task(td, series = 1)
         return [td]
 
     #TODO Andre.
@@ -395,6 +410,10 @@ class DDMD(object):
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
+        #FIXME ANDRE can you check if this makes sense?
+        td.uid = self.TASK_DDMD_SELECTION
+        self._submit_task(td, series = 1)
+
         return [td]
 
     #TODO Andre.
@@ -422,6 +441,9 @@ class DDMD(object):
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
+        #FIXME ANDRE can you check if this makes sense?
+        td.uid = self.TASK_DDMD_AGENT
+        self._submit_task(td, series = 1)
         return [td]
 
 
@@ -903,30 +925,84 @@ class DDMD(object):
         self.dump(task, 'completed dft')
         self._submit_task(self, self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
 
-
-    # --------------------------------------------------------------------------
-    #
-    def _control_ddmd(self, task):
+    # --------------------------------------------------------------------------#
+    #           CONTROLS FOR DDMD LOOP                                          #
+    # --------------------------------------------------------------------------#
+    def _control_ddmd_md(self, task):
         '''
         react on completed DDMD selection task
         '''
         series = self._get_series(task)
 
-        if len(self._tasks[series][self.TASK_SELECT]) > 1:
+        if len(self._tasks[series][self.TASK_DDMD_MD]) > 1:
             return
 
-        self.dump(task, 'completed MD')
+        self.dump(task, 'completed DDMD MD')
 
-        #FIXME: Here we need to write resource allocation to the YAML file.
-        # maybe for now we can skip this
-        with open (self.args.yaml, 'a') as f:
-            self.printYAML(cpus=cpus, gpus=gpus, sim=sim) #FIXME
+        self.generate_machine_learning_stage()
 
-        # FIXME: ttype is not defined here
-        self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
+    # --------------------------------------------------------------------------
+    #
+    def _control_ddmd_train(self, task):
+        '''
+        react on completed DDMD selection task
+        '''
+        series = self._get_series(task)
+
+        if len(self._tasks[series][self.TASK_DDMD_TRAIN]) > 1:
+            return
+
+        self.dump(task, 'completed DDMD Training')
+
+        self.generate_model_selection_stage()
+    # --------------------------------------------------------------------------
+    #
+    def _control_ddmd_selection(self, task):
+        '''
+        react on completed DDMD selection task
+        '''
+        series = self._get_series(task)
+
+        if len(self._tasks[series][self.TASK_DDMD_SELECTION]) > 1:
+            return
+
+        self.dump(task, 'completed DDMD Selection')
+
+        self.generate_agent_stage()
+
+    # --------------------------------------------------------------------------
+    #
+    def _control_ddmd_agent(self, task):
+        '''
+        react on completed DDMD selection task
+        '''
+        series = self._get_series(task)
+
+        if len(self._tasks[series][self.TASK_DDMD_AGENT]) > 1:
+            return
+
+        self.dump(task, 'completed DDMD agent')
+
+        #Check if  we are done with DDMD loop:
+        if self.stage_idx < self.cfg.max_iteration:
+            self.stage_idx += 1
+            self.generate_molecular_dynamics_stage()
+        else:
+            self.dump("DONE!!!")
+            ddmd.close() #TODO Check if this is needed!!!
 
 # ------------------------------------------------------------------------------
 #
 if __name__ == '__main__':
-    self.start()
+    ddmd = DDMD()
+    try:
+        ddmd.start()
+        while True:
+          # ddmd.dump()
+            time.sleep(1)
+
+    finally:
+        ddmd.close()
+
+
 # ------------------------------------------------------------------------------
