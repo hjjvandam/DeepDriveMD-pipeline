@@ -611,7 +611,7 @@ class DDMD(object):
 
         # start ab-initio loop
         self.stage = 1
-        self._submit_task(self.TASK_DFT, ...)
+        self._submit_task(self.TASK_DFT, )#TODO HUUB What is the configuration needed here?
 
 
 
@@ -656,8 +656,9 @@ class DDMD(object):
 
         if isinstance(ttype, rp.TaskDescription):
             tds = [ttype] * n
-            for td in tds:
-                td.uid = ru.generate_id(ttype)
+            #TODO Andre again please check if this make sense to set correct callback
+#            for td in tds:
+#                td.uid = ru.generate_id(ttype)
 
         elif isinstance(ttype, str):
 
@@ -670,7 +671,8 @@ class DDMD(object):
                 tds.append(rp.TaskDescription({
                            'pre_exec'   : ['. %s/bin/activate' % ve_path,
                                            'pip install pyyaml'], #FIXME: give correct environment name
-                           'uid'            : ru.generate_id(ttype),
+                           #'uid'            : ru.generate_id(ttype),
+                           'uid'            : ttype, #TODO ANDRE please check if this make sense for making sure we have correct callback
                            'ranks'          : 1
                            'cores_per_rank' : cpu,
                            'gpus_per_rank'  : gpu,
