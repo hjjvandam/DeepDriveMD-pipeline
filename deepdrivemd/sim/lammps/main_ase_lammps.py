@@ -15,7 +15,7 @@ os.mkdir(test_dir)
 os.chdir(test_dir)
 
 ase_lammps.lammps_input(pdb,train,freq)
-ase_lammps.lammps_run()
+ase_lammps.run_lammps()
 failed, struct = ase_lammps.lammps_questionable(0.1,0.3,freq)
 if failed:
     print("Reject trajectory")

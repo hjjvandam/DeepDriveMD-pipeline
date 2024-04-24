@@ -135,7 +135,7 @@ def lammps_input(pdb: PathLike, train: PathLike, freq: int) -> None:
         fp.write( "print        \"__end_of_ase_invoked_calculation__\"\n")
         fp.write(f"log          {lammps_out}\n")
             
-def lammps_run() -> None:
+def run_lammps() -> None:
     """Run a LAMMPS calculation.
 
     Note that ASE gets the LAMMPS executable from the
@@ -143,9 +143,9 @@ def lammps_run() -> None:
     """
     lammps_exe = Path(os.environ.get("ASE_LAMMPSRUN_COMMAND"))
     if not lammps_exe:
-        raise RuntimeError("lammps_run: ASE_LAMMPSRUN_COMMAND undefined")
+        raise RuntimeError("run_lammps: ASE_LAMMPSRUN_COMMAND undefined")
     if not Path(lammps_exe).is_file():
-        raise RuntimeError("lammps_run: ASE_LAMMPSRUN_COMMAND("+lammps_exe+") is not a file")
+        raise RuntimeError("run_lammps: ASE_LAMMPSRUN_COMMAND("+lammps_exe+") is not a file")
     with open("in_lammps","r") as fp_in:
         subprocess.run([lammps_exe],stdin=fp_in)
 
