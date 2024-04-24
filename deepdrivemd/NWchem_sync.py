@@ -55,10 +55,11 @@ class DDMD(object):
     TASK_DFT2       = 'task_dft'        # Ab-inito DFT calculation
     TASK_DFT3       = 'task_dft'        # Ab-inito DFT finalize
     # DDMD TASKS
-    TASK_DDMD_MD        = 'task_ddmd_md'        # DDMD MD-Simulation
-    TASK_DDMD_TRAIN     = 'task_ddmd_train'     # DDMD Training
-    TASK_DDMD_SELECTION = 'task_ddmd_selection' # DDMD Selection
-    TASK_DDMD_AGENT     = 'task_ddmd_agent'     # DDMD Agent
+    TASK_DDMD_MD            = 'task_ddmd_md'            # DDMD MD-Simulation
+    TASK_DDMD_AGGREGATION   = 'task_ddmd_aggregation'   # DDMD Aggregation
+    TASK_DDMD_TRAIN         = 'task_ddmd_train'         # DDMD Training
+    TASK_DDMD_SELECTION     = 'task_ddmd_selection'     # DDMD Selection
+    TASK_DDMD_AGENT         = 'task_ddmd_agent'         # DDMD Agent
 
     TASK_TYPES       = [TASK_TRAIN_FF,
                         TASK_DDMD,
@@ -67,6 +68,7 @@ class DDMD(object):
                         TASK_DFT2,
                         TASK_DFT3,
                         TASK_DDMD_MD,
+                        TASK_DDMD_AGGREGATION,
                         TASK_DDMD_TRAIN,
                         TASK_DDMD_SELECTION,
                         TASK_DDMD_AGENT]
@@ -103,6 +105,7 @@ class DDMD(object):
                           self.TASK_DFT2            : self._control_dft2            ,
                           self.TASK_DFT3            : self._control_dft3            ,
                           self.TASK_DDMD_MD         : self._control_ddmd_md         ,
+                          self.TASK_DDMD_AGGREGATION: self._control_ddmd_aggregation,
                           self.TASK_DDMD_TRAIN      : self._control_ddmd_train      ,
                           self.TASK_DDMD_SELECTION  : self._control_ddmd_selection  ,
                           self.TASK_DDMD_AGENT      : self._control_ddmd_agent      }
@@ -113,6 +116,7 @@ class DDMD(object):
                           self.TASK_DFT2            : 'd',
                           self.TASK_DFT3            : 'e',
                           self.TASK_DDMD_MD         : 'M',
+                          self,TASK_DDMD_AGGREGATION: 'G',
                           self.TASK_DDMD_TRAIN      : 'T',
                           self.TASK_DDMD_SELECTION  : 'S',
                           self.TASK_DDMD_AGENT      : 'A',
@@ -329,7 +333,7 @@ class DDMD(object):
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
-        td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
+        td.uid = ru.generate_id(self.TASK_DDMD_SELECTION) #FIXME: Add a task for Aggregeation.
         self._submit_task(td, series = 1)
 
 
@@ -494,21 +498,21 @@ class DDMD(object):
                        '{}'.format(argument_val)] #training folder name
 `
 
-        elif ttype == self.TASK_DDMD: #TODO: ask to to HUUB
-            args = ['{}/Executables/training.py'.format(self.args.work_dir),
-                       '--num_epochs={}'.format(self.args.num_epochs_train),
-                       '--device=gpu',
-                       '--phase={}'.format(phase_idx),
-                       '--data_root_dir={}'.format(self.args.data_root_dir),
-                       '--model_dir={}'.format(self.args.model_dir),
-                       '--num_sample={}'.format(self.args.num_sample * (1 if phase_idx == 0 else 2)),
-                       '--num_mult={}'.format(self.args.num_mult_train),
-                       '--dense_dim_in={}'.format(self.args.dense_dim_in),
-                       '--dense_dim_out={}'.format(self.args.dense_dim_out),
-                       '--mat_size={}'.format(self.args.mat_size),
-                       '--preprocess_time={}'.format(self.args.preprocess_time_train),
-                       '--write_size={}'.format(self.io_dict["phase{}".format(phase_idx)]["train"]["write"]),
-                       '--read_size={}'.format(self.io_dict["phase{}".format(phase_idx)]["train"]["read"])]
+#         elif ttype == self.TASK_DDMD: #TODO: ask to to HUUB
+#             args = ['{}/Executables/training.py'.format(self.args.work_dir),
+#                        '--num_epochs={}'.format(self.args.num_epochs_train),
+#                        '--device=gpu',
+#                        '--phase={}'.format(phase_idx),
+#                        '--data_root_dir={}'.format(self.args.data_root_dir),
+#                        '--model_dir={}'.format(self.args.model_dir),
+#                        '--num_sample={}'.format(self.args.num_sample * (1 if phase_idx == 0 else 2)),
+#                        '--num_mult={}'.format(self.args.num_mult_train),
+#                        '--dense_dim_in={}'.format(self.args.dense_dim_in),
+#                        '--dense_dim_out={}'.format(self.args.dense_dim_out),
+#                        '--mat_size={}'.format(self.args.mat_size),
+#                        '--preprocess_time={}'.format(self.args.preprocess_time_train),
+#                        '--write_size={}'.format(self.io_dict["phase{}".format(phase_idx)]["train"]["write"]),
+#                        '--read_size={}'.format(self.io_dict["phase{}".format(phase_idx)]["train"]["read"])]
 
 
         return args
@@ -575,7 +579,7 @@ class DDMD(object):
 
         # start ab-initio loop
         self.stage = 1
-        self._submit_task(self.TASK_DFT, )#TODO HUUB What is the configuration needed here?
+        self._submit_task(self.TASK_DFT1, )#TODO HUUB What is the configuration needed here?
 
 
 
@@ -629,7 +633,7 @@ class DDMD(object):
                 # FIXME: uuid=ttype won't work - the uid needs to be *unique*
 
                 tds.append(rp.TaskDescription({
-                           # FIXME: give correct environment name
+                           # FIXME HUUB: give correct environment name
                            'pre_exec'   : ['. %s/bin/activate' % ve_path,
                                            'pip install pyyaml'],
                            'uid'            : ru.generate_id(ttype),
@@ -816,14 +820,18 @@ class DDMD(object):
         self.dump(task, 'completed ab-initio md ')
 
         #check if this satisfy:
-        if False:
+        if Satisfy:
             #FIXME: Here we need to write resource allocation to the YAML file.
             # maybe for now we can skip this
-            with open (self.args.yaml, 'a') as f:
-                self.printYAML(cpus=cpus, gpus=gpus, sim=sim) #FIXME
+#            with open (self.args.yaml, 'a') as f:
+#                self.printYAML(cpus=cpus, gpus=gpus, sim=sim) #FIXME
 
             # FIXME: ttype is not defined here
-            self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
+            if not self.cfg.aggregation_stage.skip_aggregation:
+                self.generate_aggregating_stage()
+            else:
+                self.generate_machine_learning_stage()
+#            self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
         else:
             self._submit_task(self, self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
 
@@ -904,6 +912,22 @@ class DDMD(object):
             return
 
         self.dump(task, 'completed DDMD MD')
+        if not self.cfg.aggregation_stage.skip_aggregation:
+            self.generate_aggregating_stage()
+        else:
+            self.generate_machine_learning_stage()
+    # --------------------------------------------------------------------------
+    #
+    def _control_ddmd_aggregation(self, task):
+        '''
+        react on completed DDMD selection task
+        '''
+        series = self._get_series(task)
+
+        if len(self._tasks[series][self.TASK_DDMD_AGGREGATION]) > 1:
+            return
+
+        self.dump(task, 'completed DDMD Aggregation')
 
         self.generate_machine_learning_stage()
 
