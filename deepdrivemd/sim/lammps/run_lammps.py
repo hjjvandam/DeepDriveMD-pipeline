@@ -25,8 +25,8 @@ class SimulationContext:
         self.cfg = cfg
         self.api = DeepDriveMD_API(cfg.experiment_directory)
         self._prefix = self.api.molecular_dynamics_stage.unique_name(cfg.output_path)
-        self._top_file: Optional[Path] = None
-        self._rst_file: Optional[Path] = None
+        self._top_file:  Optional[Path] = None
+        self._rst_file:  Optional[Path] = None
 
         # Use node local storage if available. Otherwise, write to output directory.
         if cfg.node_local_path is not None:
@@ -43,6 +43,10 @@ class SimulationContext:
     @property
     def pdb_file(self) -> str:
         return self._pdb_file.as_posix()
+
+    @property
+    def train_dir(self) -> str:
+        return self.cfg.train_dir.as_posix()
 
     @property
     def traj_file(self) -> str:
@@ -216,11 +220,11 @@ def configure_simulation(
     # Run prepare
 
 def run_steps(
-            dt_ps,         # dt_ps=cfg.dt_ps,
-            time_ns,       # time_ns=ctx.simulation_length_ns,
-            report_ps,     # report_ps=ctx.report_interval_ps,
-            temperature_k, # temperature_k=cfg.temperature_kelvin,
-            nwchem_top_dir # nwchem_top_dir=cfg.nwchem_top_dir
+            dt_ps,             # dt_ps=cfg.dt_ps,
+            time_ns,           # time_ns=ctx.simulation_length_ns,
+            report_ps,         # report_ps=ctx.report_interval_ps,
+            temperature_k,     # temperature_k=cfg.temperature_kelvin,
+            lammps_prefix_path # nwchem_top_dir=cfg.nwchem_top_dir
         ) -> None:
     #do_dynamics = True
     ase_lammps.run_lammps()
@@ -240,11 +244,11 @@ def run_simulation(cfg: LAMMPSConfig) -> None:
         configure_simulation(
             init_pdb_dir=cfg.initial_pdb_dir.joinpath("system"),
             pdb_file=ctx.pdb_file,
-            top_file=ctx.top_file,
+            train_dir=ctx.train_dir,
             solvent_type=cfg.solvent_type,
             dt_ps=cfg.dt_ps,
             temperature_kelvin=cfg.temperature_kelvin,
-            lammps_path=cfg.lammps_path
+            lammps_prefix_path=cfg.lammps_prefix_path
         )
 
     # openmm typed variables
@@ -267,7 +271,7 @@ def run_simulation(cfg: LAMMPSConfig) -> None:
             time_ns=cfg.simulation_length_ns,
             report_ps=cfg.report_interval_ps,
             temperature_k=cfg.temperature_kelvin,
-            lammps_path=cfg.lammps_path
+            lammps_prefix_path=cfg.lammps_prefix_path
         )
 
     # We need to report on structures from the trajectory file.

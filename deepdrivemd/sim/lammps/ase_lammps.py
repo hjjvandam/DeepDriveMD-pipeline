@@ -103,32 +103,37 @@ def lammps_input(pdb: PathLike, train: PathLike, freq: int) -> None:
     lammps_input = Path(cwd,"in_lammps")
     lammps_trj   = Path(cwd,"trj_lammps.dcd")
     lammps_out   = Path(cwd,"out_lammps")
-    deep_models = glob.glob(str(Path(train,"train-*/compressed_model.pb")))
+    # Taking compressed models out for now due to disk space limitations.
+    # The compressed models are 10x larger than the uncompressed ones
+    # (also raising questions about what compression means here).
+    #deep_models = glob.glob(str(Path(train,"train-*/compressed_model.pb")))
+    deep_models = glob.glob(str(Path(train,"train-*/model.pb")))
     with open(lammps_data,"w") as fp:
         write_lammps_data(fp,atoms)
     with open(lammps_input,"w") as fp:
-        fp.write("clear\n")
-        fp.write("atom_style atomic\n")
-        fp.write("units metal\n")
-        fp.write("atom_modify sort 0 0.0\n\n")
-        fp.write(f"read_data {lammps_data}\n\n")
-        pair_style = "pair_style deepmd"
+        fp.write( "clear\n")
+        fp.write( "atom_style   atomic\n")
+        fp.write( "units        metal\n")
+        fp.write( "atom_modify  sort 0 0.0\n\n")
+        fp.write(f"read_data    {lammps_data}\n\n")
+        pair_style = "pair_style   deepmd"
         for model in deep_models:
             pair_style += f" {model}"
         fp.write(f"{pair_style}\n")
-        fp.write("pair_coeff * *\n")
+        fp.write( "pair_coeff   * *\n\n")
         for i, cs in enumerate(_sort_uniq(atoms.get_chemical_symbols())):
             ii = i+1
             mass = atomic_masses[chemical_symbols.index(cs)]
             fp.write(f"mass {ii} {mass}\n")
-        fp.write(f"fix fix_nvt all nvt temp {temperature} {temperature} $(100.0*dt)\n")
-        fp.write(f"dump dump_all all dcd {freq} {lammps_trj}\n")
-        fp.write("thermo_style custom step temp etotal ke pe atoms\n")
-        fp.write(f"thermo {freq}\n")
-        fp.write("timestep 0.001\n")
-        fp.write(f"run {steps} upto\n")
-        fp.write("print \"__end_of_ase_invoked_calculation__\"\n")
-        fp.write(f"log {lammps_out}\n")
+        fp.write( "\n")
+        fp.write( "timestep     0.001\n")
+        fp.write(f"fix          fix_nvt  all nvt temp {temperature} {temperature} $(100.0*dt)\n")
+        fp.write(f"dump         dump_all all dcd {freq} {lammps_trj}\n")
+        fp.write( "thermo_style custom step temp etotal ke pe atoms\n")
+        fp.write(f"thermo       {freq}\n")
+        fp.write(f"run          {steps} upto\n")
+        fp.write( "print        \"__end_of_ase_invoked_calculation__\"\n")
+        fp.write(f"log          {lammps_out}\n")
             
 def lammps_run() -> None:
     """Run a LAMMPS calculation.
