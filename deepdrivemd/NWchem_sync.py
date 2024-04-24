@@ -205,7 +205,6 @@ class DDMD(object):
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     # this needs to converted to the RP task:
-    #TODO Andre.
     def generate_task_description(cfg: BaseStageConfig) -> rp.TaskDescription:
         td = rp.TaskDescription()
         td.ranks          = cfg.cpu_reqs.cpu_processes
@@ -217,7 +216,7 @@ class DDMD(object):
         return td
 
 
-#we don't need this
+    # we don't need this
     def _init_experiment_dir(self) -> None:
         # Make experiment directories
         self.cfg.experiment_directory.mkdir()
@@ -227,7 +226,7 @@ class DDMD(object):
         self.api.model_selection_stage.runs_dir.mkdir()
         self.api.agent_stage.runs_dir.mkdir()
 
-#FIXME Probably neeed to delete this one but I am not sure since it is checking max iteration
+    # FIXME Probably neeed to delete this one but I am not sure since it is checking max iteration
     def func_condition(self) -> None:
         if self.stage_idx < self.cfg.max_iteration:
             self.func_on_true()
@@ -268,13 +267,7 @@ class DDMD(object):
 
 
 
-    #TODO Andre.
-#    def generate_molecular_dynamics_stage(self) -> Stage:
     def generate_molecular_dynamics_stage(self):
-#        stage = Stage()
-#        stage.name = self.MOLECULAR_DYNAMICS_STAGE_NAME
-        # I created a List instead of the Stage
-        tds =[]
         cfg = self.cfg.molecular_dynamics_stage
         stage_api = self.api.molecular_dynamics_stage
 
@@ -284,6 +277,7 @@ class DDMD(object):
         else:
             filenames = None
 
+        tds = []
         for task_idx in range(cfg.num_tasks):
 
             output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
@@ -306,24 +300,14 @@ class DDMD(object):
             cfg.task_config.dump_yaml(cfg_path)
             td = generate_task_description(cfg)
             td.arguments += ["-c", cfg_path.as_posix()]
-            #FIXME ANDRE can you check if this makes sense?
-            #TODO ANDRE also do you think if there is a issue submitting tasks back to back here
-            #           versus using n=cfg.num_tasks?
-            #           I submit a single task here in a loop since
-            #           it is setting taskid and probably output_path for each task
-            td.uid = self.TASK_DDMD_MD
-            self._submit_task(td, series = 1)
-            tds.append(td)
+            td.uid = ru.generate_id(self.TASK_DDMD_MD)
 
-#        return stage
-        return tds
+        tds.append(td)
+        self._submit_task(tds, series = 1)
 
-    #TODO Andre.
-    #TODO HUUB:  DO we have aggregation  stage?
-#    def generate_aggregating_stage(self) -> Stage:
+
+    # TODO HUUB:  DO we have aggregation  stage?
     def generate_aggregating_stage(self):
-#        stage = Stage()
-#        stage.name = self.AGGREGATION_STAGE_NAME
 
         cfg = self.cfg.aggregation_stage
         stage_api = self.api.aggregation_stage
@@ -345,17 +329,11 @@ class DDMD(object):
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
-        #FIXME ANDRE can you check if this makes sense?
-        td.uid = self.TASK_DDMD_SELECTION
+        td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
         self._submit_task(td, series = 1)
 
-        return [td]
 
-    #TODO Andre.
-#    def generate_machine_learning_stage(self) -> Stage:
     def generate_machine_learning_stage(self):
-#        stage = Stage()
-#        stage.name = self.MACHINE_LEARNING_STAGE_NAME
         cfg = self.cfg.machine_learning_stage
         stage_api = self.api.machine_learning_stage
 
@@ -380,16 +358,11 @@ class DDMD(object):
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posiix()]
-        #FIXME ANDRE can you check if this makes sense?
-        td.uid = self.TASK_DDMD_TRAIN
+        td.uid = ru.generate_id(self.TASK_DDMD_TRAIN)
         self._submit_task(td, series = 1)
-        return [td]
 
-    #TODO Andre.
-#    def generate_model_selection_stage(self) -> Stage:
+
     def generate_model_selection_stage(self):
-#        stage = Stage()
-#        stage.name = self.MODEL_SELECTION_STAGE_NAME
         cfg = self.cfg.model_selection_stage
         stage_api = self.api.model_selection_stage
 
@@ -410,17 +383,11 @@ class DDMD(object):
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
-        #FIXME ANDRE can you check if this makes sense?
-        td.uid = self.TASK_DDMD_SELECTION
+        td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
         self._submit_task(td, series = 1)
 
-        return [td]
 
-    #TODO Andre.
-#    def generate_agent_stage(self) -> Stage:
     def generate_agent_stage(self):
-#        stage = Stage()
-#        stage.name = self.AGENT_STAGE_NAME
         cfg = self.cfg.agent_stage
         stage_api = self.api.agent_stage
 
@@ -441,11 +408,8 @@ class DDMD(object):
         cfg.task_config.dump_yaml(cfg_path)
         td = generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
-        #FIXME ANDRE can you check if this makes sense?
-        td.uid = self.TASK_DDMD_AGENT
+        td.uid = ru.generate_id(self.TASK_DDMD_AGENT)
         self._submit_task(td, series = 1)
-        return [td]
-
 
 
     # --------------------------------------------------------------------------
@@ -639,26 +603,22 @@ class DDMD(object):
 
     # --------------------------------------------------------------------------
     #
-    # FIXME: we need to consider this again  with new model.
-    #TODO Andre.
     def _submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals=''):
         '''
         submit 'n' new tasks of specified type
-
-        NOTE: all tasks are uniform for now: they use a single core and sleep
-              for a random number (0..3) of seconds.
         '''
 
-        # NOTE: ttype can be a task description or a string.  In the first case,
-        #       we submit `n` tasks with that description.  In the second case,
-        #       we construct the task description from the remaining arguments
-        #       and the ttype string
+        assert ttype
 
-        if isinstance(ttype, rp.TaskDescription):
-            tds = [ttype] * n
-            #TODO Andre again please check if this make sense to set correct callback
-#            for td in tds:
-#                td.uid = ru.generate_id(ttype)
+        # NOTE: ttype can be a task description (or a list of those), or it can
+        #       be a string.  In the first case, we submit the given
+        #       description(s).  In the second case, we construct the task
+        #       description from the remaining arguments and the ttype string.
+        if isinstance(ttype, list) and isinstance(ttype[0], rp.TaskDescription):
+            tds = ttype
+
+        elif isinstance(ttype, rp.TaskDescription):
+            tds = [ttype]
 
         elif isinstance(ttype, str):
 
@@ -669,16 +629,20 @@ class DDMD(object):
                 # FIXME: uuid=ttype won't work - the uid needs to be *unique*
 
                 tds.append(rp.TaskDescription({
+                           # FIXME: give correct environment name
                            'pre_exec'   : ['. %s/bin/activate' % ve_path,
-                                           'pip install pyyaml'], #FIXME: give correct environment name
-                           #'uid'            : ru.generate_id(ttype),
-                           'uid'            : ttype, #TODO ANDRE please check if this make sense for making sure we have correct callback
+                                           'pip install pyyaml'],
+                           'uid'            : ru.generate_id(ttype),
                            'ranks'          : 1
                            'cores_per_rank' : cpu,
                            'gpus_per_rank'  : gpu,
                            'executable'     : 'python',
                            'arguments'      : cur_args
                            }))
+
+        else:
+            raise TypeError('invalid task type %s' % type(ttype))
+
 
         with self._lock:
 
@@ -971,6 +935,7 @@ class DDMD(object):
         self.dump(task, 'completed DDMD Selection')
 
         self.generate_agent_stage()
+
 
     # --------------------------------------------------------------------------
     #
