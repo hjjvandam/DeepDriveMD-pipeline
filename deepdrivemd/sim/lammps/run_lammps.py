@@ -5,6 +5,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
+#import deepdrivemd.sim.lammps.ase_lammps
+import ase_lammps
 import openmm
 import openmm.unit as u # type: ignore[import]
 import openmm.app as app  # type: ignore[import]
@@ -12,7 +14,7 @@ from mdtools.nwchem.reporter import OfflineReporter  # type: ignore[import]
 
 from deepdrivemd.data.api import DeepDriveMD_API
 from deepdrivemd.sim.lammps.config import LAMMPSConfig
-from deepdrivemd.sim.lammps import ase_lammps
+#from deepdrivemd.sim.lammps import ase_lammps
 from deepdrivemd.utils import Timer, parse_args
 
 import MDAnalysis
