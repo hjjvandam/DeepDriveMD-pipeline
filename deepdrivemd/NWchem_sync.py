@@ -634,7 +634,10 @@ class DDMD(object):
 
                 tds.append(rp.TaskDescription({
                            # FIXME HUUB: give correct environment name
-                           'pre_exec'   : ['. %s/bin/activate' % ve_path,
+                           #'pre_exec'   : ['. %s/bin/activate' % ve_path,
+                           #                'pip install pyyaml'],
+                           ve_path = "pydeepmd"
+                           'pre_exec'   : ['conda activate %s' % ve_path,
                                            'pip install pyyaml'],
                            'uid'            : ru.generate_id(ttype),
                            'ranks'          : 1
@@ -810,6 +813,9 @@ class DDMD(object):
         '''
         react on completed ff training task
         '''
+        # FIXME: this and lammps_questionable need to be brought in from
+        # the configuration YAML.
+        import ase_lammps
 
         series = self._get_series(task)
 
@@ -820,6 +826,8 @@ class DDMD(object):
         self.dump(task, 'completed ab-initio md ')
 
         #check if this satisfy:
+        failed, structures = ase_lammps.lammps_questionable(0.1,0.8,100)
+        Satisfy = not failed
         if Satisfy:
             #FIXME: Here we need to write resource allocation to the YAML file.
             # maybe for now we can skip this
@@ -832,7 +840,9 @@ class DDMD(object):
             else:
                 self.generate_machine_learning_stage()
 #            self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
-        else:
+        if len(Structures) > 0:
+            ase_lammps.lammps_to_pdb(trj_file,pdb_file,structures,data_dir)
+            
             self._submit_task(self, self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
 
 
