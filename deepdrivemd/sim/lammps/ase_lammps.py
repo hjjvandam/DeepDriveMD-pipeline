@@ -231,12 +231,15 @@ def lammps_to_pdb(trj_file: PathLike, pdb_file: PathLike, indeces: List[int], da
     ii = 0
     istep_trj = -1
     istep_lst = indeces[ii] 
+    pdb_list = []
     for ts in universe.trajectory:
         istep_trj +=1
         while istep_lst <  istep_trj:
             ii += 1
             if ii >= len(indeces):
                 # We are done
+                with open("pdb_files.txt","w") as fp:
+                    print(pdb_list, file=fp)
                 return
             istep_lst = indeces[ii]
         print(f"lst, trj: {istep_lst} {istep_trj}")
@@ -245,6 +248,9 @@ def lammps_to_pdb(trj_file: PathLike, pdb_file: PathLike, indeces: List[int], da
             filename = Path(data_dir,f"atoms_{hashno}_{istep_trj}.pdb")
             with mda.Writer(filename,universe.trajectory.n_atoms) as wrt:
                 wrt.write(selection)
+            pdb_list.append(filename)
+    with open("pdb_files.txt","w") as fp:
+        print(pdb_list, file=fp)
 
 def lammps_contactmap(trj_file: PathLike, pdb_file: PathLike, hdf5_file: PathLike):
     """Write timesteps from the LAMMPS DCD format trajectory to PDB files."""

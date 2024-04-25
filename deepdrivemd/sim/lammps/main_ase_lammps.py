@@ -17,6 +17,9 @@ os.chdir(test_dir)
 ase_lammps.lammps_input(pdb,train,freq)
 ase_lammps.run_lammps()
 failed, struct = ase_lammps.lammps_questionable(0.1,0.3,freq)
+success = not failed
+with open("lammps_success.txt", "w") as fp:
+    print(success, file=fp)
 if failed:
     print("Reject trajectory")
 else:
