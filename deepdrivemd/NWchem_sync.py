@@ -18,13 +18,15 @@
 #
 
 # This one will run synchronously
-import os
-import math, sys, argparse
+import argparse
 import json
-import time
+import math
+import os
 import random
 import signal
+import sys
 import threading as mt
+import time
 import typing
 
 from collections import defaultdict
@@ -129,6 +131,9 @@ class DDMD(object):
         self._threshold      =  1
         self._cores          = 16  # available cpu resources FIXME: maybe get from the user?
         self._gpus           =  4  # available gpu resources  ""
+        #DEBUG
+        self._gpus           =  0  # for now
+        #DEBUG
         self._avail_cores    = self._cores
         self._avail_gpus     = self._gpus
         self._cores_used     =  0
@@ -155,6 +160,10 @@ class DDMD(object):
         self._pmgr    = rp.PilotManager(session=self._session)
         self._tmgr    = rp.TaskManager(session=self._session)
 
+        # Where is the software we are running
+        abs_path = os.path.abspath(__file__)
+        self._deepdrivemd_directory = os.path.dirname(abs_path)
+
         # Maybe get from user??
         pdesc = rp.PilotDescription({'resource': 'local.localhost',
                                      'runtime' : 30,
@@ -166,15 +175,22 @@ class DDMD(object):
         self._tmgr.add_pilots(self._pilot)
         self._tmgr.register_callback(self._state_cb)
 
-        # Parser
-        self.set_argparse()
-        self.get_json()
-
         #set aditional DDMD related setups:
 
         #FIXME: Makesure the names are not conflicting with others
         args = parse_args()
         cfg = ExperimentConfig.from_yaml(args.config)
+        self._env_work_dir = cfg.experiment_directory
+        self.cfg = cfg
+
+        # Parser
+        # We need a different solution for this. The parse_args a few lines back conflicts
+        # with the parse_args in the next function. The arguments known to set_argparse are
+        # unknown to deepdrivemd.utils.parse_args. Some of the arguments unknown to
+        # deepdrivemd.utils.parse_args are required by set_argparse.
+        # We need to call set_argparse to set self.args.work_dir needed by get_json.
+        self.set_argparse()
+        self.get_json()
 
         # Calculate total number of nodes required.
         # If gpus_per_node is 0, then we assume that the CPU is used for
@@ -420,6 +436,8 @@ class DDMD(object):
     def set_argparse(self):
         parser = argparse.ArgumentParser(description="NWChem - DeepDriveMD Synchronous")
         #FIXME Delete unneded ones and add the ones we need.
+        parser.add_argument('-c', '--config', 
+                        help='YAML config file', type=str, required=True)
         parser.add_argument('--num_phases', type=int, default=3,
                         help='number of phases in the workflow')
         parser.add_argument('--mat_size', type=int, default=5000,
@@ -454,11 +472,11 @@ class DDMD(object):
                         help='number of matrix mult to perform in agent task, outlier')
         parser.add_argument('--enable_darshan', action='store_true',
                         help='enable darshan analyze')
-        parser.add_argument('--project_id', required=True,
+        parser.add_argument('--project_id', # required=True,
                         help='the project ID we used to launch the job')
-        parser.add_argument('--queue', required=True,
+        parser.add_argument('--queue', # required=True,
                         help='the queue we used to submit the job')
-        parser.add_argument('--work_dir', default=self.env_work_dir,
+        parser.add_argument('--work_dir', default=self._env_work_dir,
                         help='working dir, which is the dir of this repo')
         parser.add_argument('--num_sim', type=int, default=12,
                         help='number of tasks used for simulation')
@@ -472,6 +490,7 @@ class DDMD(object):
 
     # FIXME: This is unused now but we may want to use  a json file in the future
     def get_json(self):
+        return
         json_file = "{}/launch-scripts/{}".format(self.args.work_dir, self.args.io_json_file)
         with open(json_file) as f:
             self.io_dict = json.load(f)
@@ -487,17 +506,18 @@ class DDMD(object):
 
         elif ttype == self.TASK_DFT1:
             # Generate a set of input files and store the filenames in "inputs.txt"
-            args = ['{}/sim/nwchem/main1_nwchem.py'.format(self.args.work_dir),
+            args = ['{}/sim/nwchem/main1_nwchem.py'.format(self._deepdrivemd_directory),
                     '{}/ab_initio'.format(self.cfg.experiment_directory),
                     '{}/molecular_dynamics_runs'.format(self.cfg.experiment_directory)]
         elif ttype == self.TASK_DFT2:
-            args = ['{}/sim/nwchem/main2_nwchem.py'.format(self.args.work_dir),
-                           '{}'.format(argument_val)] # this will need to get the instance
+            args = ['{}/sim/nwchem/main2_nwchem.py'.format(self._deepdrivemd_directory),
+                    '{}/ab_initio'.format(self.cfg.experiment_directory),
+                    '{}'.format(argument_val)] # this will need to get the instance
         elif ttype == self.TASK_DFT3:
-            args = ['{}/sim/nwchem/main3_nwchem.py'.format(self.args.work_dir)]
-
+            args = ['{}/sim/nwchem/main3_nwchem.py'.format(self._deepdrivemd_directory),
+                    '{}/ab_initio'.format(self.cfg.experiment_directory)]
         elif ttype == self.TASK_TRAIN_FF:
-            args = ['{}/model/deepm/main_deepmd.py'.format(self.args.work_dir),
+            args = ['{}/model/deepm/main_deepmd.py'.format(self._deepdrivemd_directory),
                        '{}'.format(argument_val)] #training folder name
 
 #         elif ttype == self.TASK_DDMD: #TODO: ask to to HUUB
@@ -555,7 +575,7 @@ class DDMD(object):
             n = 0
             for series in self._series:
                 n   += len(self._tasks[series][ttype])
-                idle -= n
+            idle -= n
 
             self._rep.ok('%s' % self._glyphs[ttype] * n)
 
@@ -1093,8 +1113,8 @@ if __name__ == '__main__':
     try:
         ddmd.start()
         while True:
-          # ddmd.dump()
-            time.sleep(1)
+           #ddmd.dump()
+           time.sleep(1)
 
     finally:
         ddmd.close()
