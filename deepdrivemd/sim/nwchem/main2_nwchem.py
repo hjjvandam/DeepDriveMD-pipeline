@@ -18,16 +18,18 @@ import sys
 # where the NWChem executable lives.
 nwchem_top = None
 deepmd_source_dir = None
-test_data = Path("../../../../data/h2co/system")
+test_data = Path("../../../../../data/h2co/system")
 test_pdb = Path(test_data,"h2co-unfolded.pdb")
 test_inp = "h2co.nwi"
 test_out = "h2co.nwo"
 test_path = Path("./test_dir")
 curr_path = Path("./")
-os.mkdir(test_path)
+test_path = Path(sys.argv[1])
+#os.mkdir(test_path)
 os.chdir(test_path)
-instance = sys.argv[1]
+instance = sys.argv[2]
 print (instance)
+instance = Path(instance)
 # print("Generate NWChem input files")
 # inputs_cp = ase_nwchem.fetch_input(test_data)
 # inputs_gn = ase_nwchem.perturb_mol(30,test_pdb)
