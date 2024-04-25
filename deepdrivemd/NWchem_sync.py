@@ -845,9 +845,6 @@ class DDMD(object):
         if len(Structures) > 0:
             self._submit_task(self, self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
 
-
-
-
     # --------------------------------------------------------------------------
     #
     def _control_train_ff(self, task):
@@ -876,9 +873,15 @@ class DDMD(object):
 
         # TODO READ the inputs.txt
         # submit self.TASK_DFT2 for each line
+        # FIXME HUUB can you please chech to see if this does what you wanted
+        with open("inputs.txt", "r") as fp:
+            inputlines = fp.readlines()
+            for line in inputlines:
+                self._submit_task(self, self.TASK_DFT2, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals=line)
+
 
         self.dump(task, 'completed dft1')
-        self._submit_task(self, self.TASK_DFT2, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
+#        self._submit_task(self, self.TASK_DFT2, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
@@ -991,6 +994,86 @@ class DDMD(object):
         else:
             self.dump("DONE!!!")
             ddmd.close() #TODO Check if this is needed!!!
+
+
+    # --------------------------------------------------------------------------#
+    #                       Place holder for Ab-initio Stages                   #
+    # --------------------------------------------------------------------------#
+    def generate_dft_stage(self, structure = None, path="pbd_files.txt"):
+#        cfg = self.cfg.dft
+#        stage_api = self.api.dft
+#
+#        task_idx = 0
+#        output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
+#        assert output_path is not None
+#
+#        # Update base parameters
+#        cfg.task_config.experiment_directory = self.cfg.experiment_directory
+#        cfg.task_config.stage_idx = self.stage_idx
+#        cfg.task_config.task_idx = task_idx
+#        cfg.task_config.node_local_path = self.cfg.node_local_path
+#        cfg.task_config.output_path = output_path
+#
+#        # Write yaml configuration
+#        cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+#        assert cfg_path is not None
+#        cfg.task_config.dump_yaml(cfg_path)
+#        td = generate_task_description(cfg)
+#        td.arguments += ["-c", cfg_path.as_posix()]
+#        td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
+#        self._submit_task(td, series = 1)
+
+    def generate_fft_stage(self, structure = None, path="pbd_files.txt"):
+#        cfg = self.cfg.dft
+#        stage_api = self.api.dft
+#
+#        task_idx = 0
+#        output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
+#        assert output_path is not None
+#
+#        # Update base parameters
+#        cfg.task_config.experiment_directory = self.cfg.experiment_directory
+#        cfg.task_config.stage_idx = self.stage_idx
+#        cfg.task_config.task_idx = task_idx
+#        cfg.task_config.node_local_path = self.cfg.node_local_path
+#        cfg.task_config.output_path = output_path
+#
+#        # Write yaml configuration
+#        cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+#        assert cfg_path is not None
+#        cfg.task_config.dump_yaml(cfg_path)
+#        td = generate_task_description(cfg)
+#        td.arguments += ["-c", cfg_path.as_posix()]
+#        td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
+#        self._submit_task(td, series = 1)
+
+    def generate_md_stage(self, structure = None, path="pbd_files.txt"):
+#        cfg = self.cfg.dft
+#        stage_api = self.api.dft
+#
+#        task_idx = 0
+#        output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
+#        assert output_path is not None
+#
+#        # Update base parameters
+#        cfg.task_config.experiment_directory = self.cfg.experiment_directory
+#        cfg.task_config.stage_idx = self.stage_idx
+#        cfg.task_config.task_idx = task_idx
+#        cfg.task_config.node_local_path = self.cfg.node_local_path
+#        cfg.task_config.output_path = output_path
+#
+#        # Write yaml configuration
+#        cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+#        assert cfg_path is not None
+#        cfg.task_config.dump_yaml(cfg_path)
+#        td = generate_task_description(cfg)
+#        td.arguments += ["-c", cfg_path.as_posix()]
+#        td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
+#        self._submit_task(td, series = 1)
+
+
+
+
 
 # ------------------------------------------------------------------------------
 #
