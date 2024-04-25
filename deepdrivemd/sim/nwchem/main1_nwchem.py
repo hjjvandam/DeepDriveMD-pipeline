@@ -11,13 +11,14 @@ These tests make sure that
 import os
 import ase_nwchem
 import glob
+import sys
 from pathlib import Path
 
 # the NWCHEM_TOP environment variable needs to be set to specify
 # where the NWChem executable lives.
 nwchem_top = None
 deepmd_source_dir = None
-test_data = Path("../../../../data/h2co/system")
+test_data = Path("../../../../../data/h2co/system")
 test_pdb = Path(test_data,"h2co-unfolded.pdb")
 test_inp = "h2co.nwi"
 test_out = "h2co.nwo"
@@ -25,7 +26,7 @@ test_path = Path("./test_dir")
 curr_path = Path("./")
 test_path = Path(sys.argv[1])
 if not test_path.exists():
-    os.mkdir(test_path)
+    os.makedirs(test_path,exist_ok=True)
 os.chdir(test_path)
 print("Generate NWChem input files")
 inputs_path = Path(test_path,"inputs.txt")
@@ -51,7 +52,8 @@ else:
         ase_nwchem.nwchem_input(input_name,pdb_path)
         inputs.append(input_path)
 with open("inputs.txt", "w") as f:
-    print(inputs, file=f)
+    for filename in inputs:
+        print(str(filename), file=f)
 
 # print("Run NWChem")
 # for instance in inputs:
