@@ -23,13 +23,34 @@ test_inp = "h2co.nwi"
 test_out = "h2co.nwo"
 test_path = Path("./test_dir")
 curr_path = Path("./")
-os.mkdir(test_path)
+test_path = Path(sys.argv[1])
+if not test_path.exists():
+    os.mkdir(test_path)
 os.chdir(test_path)
 print("Generate NWChem input files")
-inputs_cp = ase_nwchem.fetch_input(test_data)
-inputs_gn = ase_nwchem.perturb_mol(30,test_pdb)
-inputs = inputs_cp + inputs_gn
-with open("inputs.txt", "a") as f:
+inputs_path = Path(test_path,"inputs.txt")
+if not inputs_path.exists():
+    # We haven't run any DFT calculations yet so generate input files
+    # and store the list of inputs files
+    # - grab a bunch of predefined input files
+    # - perturb the initial molecular structure to generate more inputs
+    inputs_cp = ase_nwchem.fetch_input(test_data)
+    inputs_gn = ase_nwchem.perturb_mol(30,test_pdb)
+    inputs = inputs_cp + inputs_gn
+else:
+    # We need to take new input files from the PDB structure generated
+    # by the LAMMPS MD run
+    pdbs_path = Path(sys.argv[2])
+    inputs = []
+    with open(pdbs_path, "r") as fp:
+        lines = fp.readlines()
+    for line in lines:
+        pdb_path = Path(line)
+        input_path = Path(test_path,pdb_path.stem)
+        input_name = Path(input_path,".nwi")
+        ase_nwchem.nwchem_input(input_name,pdb_path)
+        inputs.append(input_path)
+with open("inputs.txt", "w") as f:
     print(inputs, file=f)
 
 # print("Run NWChem")
