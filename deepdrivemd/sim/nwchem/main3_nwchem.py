@@ -23,7 +23,8 @@ test_inp = "h2co.nwi"
 test_out = "h2co.nwo"
 test_path = Path("./test_dir")
 curr_path = Path("./")
-os.mkdir(test_path)
+test_path = Path(sys.argv[1])
+#os.mkdir(test_path)
 os.chdir(test_path)
 # print("Generate NWChem input files")
 # inputs_cp = ase_nwchem.fetch_input(test_data)
