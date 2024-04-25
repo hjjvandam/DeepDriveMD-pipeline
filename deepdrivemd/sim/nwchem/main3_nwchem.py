@@ -36,7 +36,14 @@ os.chdir(test_path)
 #     test_out = instance.with_suffix(".nwo")
 #     ase_nwchem.run_nwchem(nwchem_top,test_inp,test_out)
 print("Extract NWChem results")
-test_dat = glob.glob("*.nwo")
+#test_dat = glob.glob("*.nwo")
+# We just want to add the data from the last batch of DFT calculations.
+test_dat = []
+with open("inputs.txt", "r") as fp:
+    lines = fp.readlines()
+for line in lines:
+    test_out = Path(line),with_suffix(".nwo")
+    test_dat.append(test_out)
 ase_nwchem.nwchem_to_raw(test_dat)
 print("Convert raw files to NumPy files")
 ase_nwchem.raw_to_deepmd(deepmd_source_dir)
