@@ -486,7 +486,10 @@ class DDMD(object):
                            '{}'.format(argument_val.split("|")[1])] # get test dir  path here #FIXME
 
         elif ttype == self.TASK_DFT1:
-            args = ['{}/sim/nwchem/main1_nwchem.py'.format(self.args.work_dir)]
+            # Generate a set of input files and store the filenames in "inputs.txt"
+            args = ['{}/sim/nwchem/main1_nwchem.py'.format(self.args.work_dir),
+                    '{}/ab_initio'.format(self.cfg.experiment_directory)]
+                    '{}/molecular_dynamics_runs'.format(self.cfg.experiment_directory)]
         elif ttype == self.TASK_DFT2:
             args = ['{}/sim/nwchem/main2_nwchem.py'.format(self.args.work_dir),
                            '{}'.format(argument_val))] # this will need to get the instance
@@ -579,7 +582,7 @@ class DDMD(object):
 
         # start ab-initio loop
         self.stage = 1
-        self._submit_task(self.TASK_DFT1, )#TODO HUUB What is the configuration needed here?
+        self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')#TODO HUUB What is the configuration needed here?
 
 
 
@@ -813,10 +816,6 @@ class DDMD(object):
         '''
         react on completed ff training task
         '''
-        # FIXME: this and lammps_questionable need to be brought in from
-        # the configuration YAML.
-        import ase_lammps
-
         series = self._get_series(task)
 
         if len(self._tasks[series][self.TASK_MD]) > 1:
@@ -826,8 +825,9 @@ class DDMD(object):
         self.dump(task, 'completed ab-initio md ')
 
         #check if this satisfy:
-        failed, structures = ase_lammps.lammps_questionable(0.1,0.8,100)
-        Satisfy = not failed
+        with open("lammps_success.txt", "r") as fp:
+            line = fp.readline()
+        Satisfy = bool(line)
         if Satisfy:
             #FIXME: Here we need to write resource allocation to the YAML file.
             # maybe for now we can skip this
@@ -840,9 +840,9 @@ class DDMD(object):
             else:
                 self.generate_machine_learning_stage()
 #            self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
+        with open("pdb_files.txt", "r") as fp:
+            Structures = fp.readlines()
         if len(Structures) > 0:
-            ase_lammps.lammps_to_pdb(trj_file,pdb_file,structures,data_dir)
-            
             self._submit_task(self, self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
 
 
