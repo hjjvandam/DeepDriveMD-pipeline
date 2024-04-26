@@ -2,9 +2,9 @@ echo
 
 title "h2_000000_dat"
 
-permanent_dir /direct/sdcc+u/hvandam/DeepDriveMD-pipeline/deepdrivemd/sim/nwchem/test_dir/h2_000000_dat
+permanent_dir ./h2_000000_dat
 
-scratch_dir /direct/sdcc+u/hvandam/DeepDriveMD-pipeline/deepdrivemd/sim/nwchem/test_dir/h2_000000_dat
+scratch_dir ./h2_000000_dat
 
 start h2_000000_dat
 
@@ -24,6 +24,7 @@ dft
   odft
   direct
   maxiter 500
+  mulliken
   noprint "final vectors analysis"
 end
 
