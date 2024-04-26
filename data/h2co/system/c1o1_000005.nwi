@@ -14,7 +14,7 @@ geometry units angstrom nocenter noautosym noautoz
 end
 
 basis noprint
-   * library cc-pvtz
+   * library cc-pvdz
 end
 
 dft
