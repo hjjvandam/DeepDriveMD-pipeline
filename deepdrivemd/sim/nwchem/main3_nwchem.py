@@ -11,6 +11,7 @@ These tests make sure that
 import os
 import ase_nwchem
 import glob
+import sys
 from pathlib import Path
 
 # the NWCHEM_TOP environment variable needs to be set to specify
