@@ -54,6 +54,7 @@ else:
 with open("inputs.txt", "w") as f:
     for filename in inputs:
         print(str(filename), file=f)
+print("Done NWChem input files")
 
 # print("Run NWChem")
 # for instance in inputs:
