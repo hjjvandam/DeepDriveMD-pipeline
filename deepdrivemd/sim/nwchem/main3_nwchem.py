@@ -44,7 +44,8 @@ test_dat = []
 with open("inputs.txt", "r") as fp:
     lines = fp.readlines()
 for line in lines:
-    test_out = Path(line),with_suffix(".nwo")
+    filename = line.strip()
+    test_out = Path(filename).with_suffix(".nwo")
     test_dat.append(test_out)
 ase_nwchem.nwchem_to_raw(test_dat)
 print("Convert raw files to NumPy files")
