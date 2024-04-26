@@ -55,8 +55,8 @@ class DDMD(object):
     TASK_TRAIN_FF   = 'task_train_ff'   # AB-initio-FF-training
     TASK_MD         = 'task_md'         # AB-initio MD-simulation
     TASK_DFT1       = 'task_dft1'       # Ab-inito DFT prep
-    TASK_DFT2       = 'task_dft'        # Ab-inito DFT calculation
-    TASK_DFT3       = 'task_dft'        # Ab-inito DFT finalize
+    TASK_DFT2       = 'task_dft2'       # Ab-inito DFT calculation
+    TASK_DFT3       = 'task_dft3'       # Ab-inito DFT finalize
     # DDMD TASKS
     TASK_DDMD_MD            = 'task_ddmd_md'            # DDMD MD-Simulation
     TASK_DDMD_AGGREGATION   = 'task_ddmd_aggregation'   # DDMD Aggregation
@@ -629,7 +629,7 @@ class DDMD(object):
 
     # --------------------------------------------------------------------------
     #
-    def _submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals=''):
+    def _submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series=1, argvals=''):
         '''
         submit 'n' new tasks of specified type
         '''
@@ -659,8 +659,7 @@ class DDMD(object):
                            # FIXME HUUB: give correct environment name
                            #'pre_exec'   : ['. %s/bin/activate' % ve_path,
                            #                'pip install pyyaml'],
-                           'pre_exec'   : ['conda activate %s' % ve_path,
-                                           'pip install pyyaml'],
+                           'pre_exec'       : ['conda activate %s' % ve_path],
                            'uid'            : ru.generate_id(ttype),
                            'ranks'          : 1,
                            'cores_per_rank' : cpu,
@@ -893,14 +892,13 @@ class DDMD(object):
         # TODO READ the inputs.txt
         # submit self.TASK_DFT2 for each line
         # FIXME HUUB can you please chech to see if this does what you wanted
-        with open("inputs.txt", "r") as fp:
-            inputlines = fp.readlines()
-            for line in inputlines:
-                self._submit_task(self, self.TASK_DFT2, args=None, n=1, cpu=1, gpu=0, series=1, argvals=line)
-
+        inputs_file = '{}/ab_initio/inputs.txt'.format(self.cfg.experiment_directory)
+        with open(inputs_file, "r") as fp:
+            for line in fp:
+                filename = line.strip()
+                self._submit_task(self.TASK_DFT2, args=None, n=1, cpu=1, gpu=0, series=1, argvals=filename)
 
         self.dump(task, 'completed dft1')
-#        self._submit_task(self, self.TASK_DFT2, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
@@ -913,8 +911,8 @@ class DDMD(object):
         if len(self._tasks[series][self.TASK_DFT2]) > 1:
             return
 
-        self.dump(task, 'completed dft')
-        self._submit_task(self, self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+        self.dump(task, 'completed dft2')
+        self._submit_task(self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
 
     # --------------------------------------------------------------------------
@@ -928,8 +926,8 @@ class DDMD(object):
         if len(self._tasks[series][self.TASK_DFT3]) > 1:
             return
 
-        self.dump(task, 'completed dft')
-        self._submit_task(self, self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+        self.dump(task, 'completed dft3')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
     # --------------------------------------------------------------------------#
     #           CONTROLS FOR DDMD LOOP                                          #
