@@ -2,9 +2,9 @@ echo
 
 title "c1_000000_dat"
 
-permanent_dir /direct/sdcc+u/hvandam/DeepDriveMD-pipeline/deepdrivemd/sim/nwchem/test_dir/c1_000000_dat
+permanent_dir ./c1_000000_dat
 
-scratch_dir /direct/sdcc+u/hvandam/DeepDriveMD-pipeline/deepdrivemd/sim/nwchem/test_dir/c1_000000_dat
+scratch_dir ./c1_000000_dat
 
 start c1_000000_dat
 
@@ -22,6 +22,7 @@ dft
   odft
   direct
   maxiter 500
+  mulliken
   noprint "final vectors analysis"
 end
 
