@@ -1,10 +1,12 @@
 import deepmd
 import os
+import sys
 from pathlib import Path
 
 cwd = os.getcwd()
 data_path = Path(cwd,"../../sim/nwchem/test_dir")
-train = sys.argv[1]
+data_path = sys.argv[1]
+train = sys.argv[2]
 json_file = Path(train,"input.json")
 ckpt = Path("model.ckpt")
 
