@@ -517,8 +517,9 @@ class DDMD(object):
             args = ['{}/sim/nwchem/main3_nwchem.py'.format(self._deepdrivemd_directory),
                     '{}/ab_initio'.format(self.cfg.experiment_directory)]
         elif ttype == self.TASK_TRAIN_FF:
-            args = ['{}/model/deepm/main_deepmd.py'.format(self._deepdrivemd_directory),
-                       '{}'.format(argument_val)] #training folder name
+            args = ['{}/models/deepmd/main_deepmd.py'.format(self._deepdrivemd_directory),
+                    '{}/ab_initio'.format(self.cfg.experiment_directory),
+                    '{}'.format(argument_val)] #training folder name
 
 #         elif ttype == self.TASK_DDMD: #TODO: ask to to HUUB
 #             args = ['{}/Executables/training.py'.format(self.args.work_dir),
@@ -861,7 +862,7 @@ class DDMD(object):
         with open("pdb_files.txt", "r") as fp:
             Structures = fp.readlines()
         if len(Structures) > 0:
-            self._submit_task(self, self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+            self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
@@ -876,7 +877,10 @@ class DDMD(object):
             return
 
         self.dump(task, 'completed ff train')
-        self._submit_task(self, self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-1')
+        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-2')
+        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-3')
+        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-4')
 
     # --------------------------------------------------------------------------
     #
