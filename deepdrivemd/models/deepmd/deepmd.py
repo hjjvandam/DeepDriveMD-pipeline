@@ -235,7 +235,7 @@ def train(train_path: PathLike, json_file: PathLike,
     cwd = os.getcwd()
     trn_path = Path(train_path)
     if not trn_path.exists():
-        os.mkdir(trn_path)
+        os.makedirs(trn_path,exist_ok=True)
     elif not trn_path.is_dir():
         raise OSError(trn_path+" exists but is not a directory")
     os.chdir(trn_path)

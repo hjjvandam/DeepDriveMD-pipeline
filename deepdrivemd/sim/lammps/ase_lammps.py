@@ -250,7 +250,8 @@ def lammps_to_pdb(trj_file: PathLike, pdb_file: PathLike, indeces: List[int], da
                 wrt.write(selection)
             pdb_list.append(filename)
     with open("pdb_files.txt","w") as fp:
-        print(pdb_list, file=fp)
+        for pdb_file in pdb_list:
+            print(pdb_file, file=fp)
 
 def lammps_contactmap(trj_file: PathLike, pdb_file: PathLike, hdf5_file: PathLike):
     """Write timesteps from the LAMMPS DCD format trajectory to PDB files."""

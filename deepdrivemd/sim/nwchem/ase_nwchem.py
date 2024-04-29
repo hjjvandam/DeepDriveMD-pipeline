@@ -70,7 +70,7 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
              atoms = read_proteindatabank(pdb,index=0)
          # Perturb the atom positions
          if ii != 0:
-             atoms.rattle(stdev=1.00,rng=random)
+             atoms.rattle(stdev=0.50,rng=random)
          tmpfile = Path("./tmp.pdb")
          with open(tmpfile,"w") as fp:
              write_proteindatabank(fp,atoms)
@@ -183,16 +183,17 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
     """
     with open(pdb,"r") as fp:
         molecule = read_proteindatabank(fp,index=0)
-    name = str(inpf).replace(".nwi","_dat")
+    name = Path(inpf).name
+    name = str(name).replace(".nwi","_dat")
     fp = open(inpf,"w")
     opts = dict(label=name,
-                basis="cc-pvtz",
+                basis="cc-pvdz",
                 symmetry="c1",
                 dft=dict(xc="scan",
                          mult=1,
                          odft=None,
                          direct=None,
-                         maxiter=500,
+                         maxiter=300, # for testing
                          mulliken=None,
                          noprint="\"final vectors analysis\""),
                 theory="dft")
@@ -241,7 +242,8 @@ def run_nwchem(nwchem_top: PathLike, inpf: PathLike, outf: PathLike) -> None:
     if not nwchem_nproc:
         #nwchem_nproc = "16"
         nwchem_nproc = "1"
-    name = str(inpf).replace(".nwi","_dat")
+    name = Path(inpf).name
+    name = str(name).replace(".nwi","_dat")
     # ASE is going to insist on this directory for the 
     # permanent_dir and scratch_dir so we have to make 
     # sure it exists

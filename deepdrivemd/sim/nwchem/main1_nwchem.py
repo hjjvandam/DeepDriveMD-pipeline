@@ -43,12 +43,13 @@ else:
     # by the LAMMPS MD run
     pdbs_path = Path(sys.argv[2])
     inputs = []
-    with open(pdbs_path, "r") as fp:
+    filename = Path(pdbs_path,"pdb_files.txt")
+    with open(str(filename), "r") as fp:
         lines = fp.readlines()
     for line in lines:
-        pdb_path = Path(line)
-        input_path = Path(test_path,pdb_path.stem)
-        input_name = Path(input_path,".nwi")
+        pdb_path = Path(pdbs_path,line.strip())
+        input_path = Path(test_path,Path(line.strip()).stem)
+        input_name = input_path.with_suffix(".nwi")
         ase_nwchem.nwchem_input(input_name,pdb_path)
         inputs.append(input_path)
 with open("inputs.txt", "w") as f:

@@ -27,6 +27,7 @@ import signal
 import sys
 import threading as mt
 import time
+import traceback
 import typing
 
 from collections import defaultdict
@@ -129,11 +130,9 @@ class DDMD(object):
         self._iterDDMD1      =  0
         self._iterDDMD2      =  0
         self._threshold      =  1
-        self._cores          = 16  # available cpu resources FIXME: maybe get from the user?
+        self._cores          = 48  # available cpu resources FIXME: maybe get from the user?
         self._gpus           =  4  # available gpu resources  ""
-        #DEBUG
-        self._gpus           =  0  # for now
-        #DEBUG
+        self._gpus           =  0  # for now... (Still need reinstall TensorFlow)
         self._avail_cores    = self._cores
         self._avail_gpus     = self._gpus
         self._cores_used     =  0
@@ -165,7 +164,7 @@ class DDMD(object):
         self._deepdrivemd_directory = os.path.dirname(abs_path)
 
         # Maybe get from user??
-        pdesc = rp.PilotDescription({'resource': 'local.localhost',
+        pdesc = rp.PilotDescription({'resource': 'local.localhost_test',
                                      'runtime' : 30,
 #                                     'runtime' : 4,
                                      'cores'   : self._cores})
@@ -500,10 +499,10 @@ class DDMD(object):
         args = []
 
         if ttype == self.TASK_MD:
-            args = ['{}/sim/lammps/main_ase_lammps.py'.format(self.args.work_dir),
-                           '{}'.format(argument_val.split("|")[0]), # get pbd file path here #FIXME
-                           '{}'.format(argument_val.split("|")[1])] # get test dir  path here #FIXME
-
+            args = ['{}/sim/lammps/main_ase_lammps.py'.format(self._deepdrivemd_directory),
+                    '{}/molecular_dynamics_runs'.format(self.cfg.experiment_directory), # get test dir  path here #FIXME
+                    '{}/ab_initio'.format(self.cfg.experiment_directory), # get pbd file path here #FIXME
+                    '{}/deepmd'.format(self.cfg.experiment_directory)] #training folder name
         elif ttype == self.TASK_DFT1:
             # Generate a set of input files and store the filenames in "inputs.txt"
             args = ['{}/sim/nwchem/main1_nwchem.py'.format(self._deepdrivemd_directory),
@@ -519,7 +518,7 @@ class DDMD(object):
         elif ttype == self.TASK_TRAIN_FF:
             args = ['{}/models/deepmd/main_deepmd.py'.format(self._deepdrivemd_directory),
                     '{}/ab_initio'.format(self.cfg.experiment_directory),
-                    '{}'.format(argument_val)] #training folder name
+                    '{}/deepmd/{}'.format(self.cfg.experiment_directory,argument_val)] #training folder name
 
 #         elif ttype == self.TASK_DDMD: #TODO: ask to to HUUB
 #             args = ['{}/Executables/training.py'.format(self.args.work_dir),
@@ -660,6 +659,8 @@ class DDMD(object):
                            # FIXME HUUB: give correct environment name
                            #'pre_exec'   : ['. %s/bin/activate' % ve_path,
                            #                'pip install pyyaml'],
+                           # Activating a conda environment inside a Python virtual environment
+                           # can generate interesting problems. 
                            'pre_exec'       : ['conda activate %s' % ve_path],
                            'uid'            : ru.generate_id(ttype),
                            'ranks'          : 1,
@@ -844,9 +845,10 @@ class DDMD(object):
         self.dump(task, 'completed ab-initio md ')
 
         #check if this satisfy:
-        with open("lammps_success.txt", "r") as fp:
+        filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","lammps_success.txt")
+        with open(str(filename), "r") as fp:
             line = fp.readline()
-        Satisfy = bool(line)
+        Satisfy = eval(line)
         if Satisfy:
             #FIXME: Here we need to write resource allocation to the YAML file.
             # maybe for now we can skip this
@@ -859,7 +861,8 @@ class DDMD(object):
             else:
                 self.generate_machine_learning_stage()
 #            self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
-        with open("pdb_files.txt", "r") as fp:
+        filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
+        with open(str(filename), "r") as fp:
             Structures = fp.readlines()
         if len(Structures) > 0:
             self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
@@ -877,10 +880,7 @@ class DDMD(object):
             return
 
         self.dump(task, 'completed ff train')
-        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-1')
-        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-2')
-        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-3')
-        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-4')
+        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
@@ -931,7 +931,10 @@ class DDMD(object):
             return
 
         self.dump(task, 'completed dft3')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-1')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-2')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-3')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-4')
 
     # --------------------------------------------------------------------------#
     #           CONTROLS FOR DDMD LOOP                                          #
@@ -1021,9 +1024,6 @@ class DDMD(object):
     #                       Place holder for Ab-initio Stages                   #
     # --------------------------------------------------------------------------#
     def generate_dft_stage(self, structure = None, path="pbd_files.txt"):
-        #DEBUG
-        print("generate_dft_stage does not do anything currently")
-        #DEBUG
         return
         #cfg = self.cfg.dft
         #stage_api = self.api.dft
@@ -1049,9 +1049,6 @@ class DDMD(object):
         #self._submit_task(td, series = 1)
 
     def generate_fft_stage(self, structure = None, path="pbd_files.txt"):
-        #DEBUG
-        print("generate_fft_stage does not do anything currently")
-        #DEBUG
         return
         #cfg = self.cfg.dft
         #stage_api = self.api.dft
@@ -1077,9 +1074,6 @@ class DDMD(object):
         #self._submit_task(td, series = 1)
 
     def generate_md_stage(self, structure = None, path="pbd_files.txt"):
-        #DEBUG
-        print("generate_md_stage does not do anything currently")
-        #DEBUG
         return
         #cfg = self.cfg.dft
         #stage_api = self.api.dft
