@@ -36,7 +36,7 @@ if not inputs_path.exists():
     # - grab a bunch of predefined input files
     # - perturb the initial molecular structure to generate more inputs
     inputs_cp = ase_nwchem.fetch_input(test_data)
-    inputs_gn = ase_nwchem.perturb_mol(30,test_pdb)
+    inputs_gn = ase_nwchem.perturb_mol(480,test_pdb)
     inputs = inputs_cp + inputs_gn
 else:
     # We need to take new input files from the PDB structure generated
