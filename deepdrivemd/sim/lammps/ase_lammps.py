@@ -92,7 +92,7 @@ def lammps_input(pdb: PathLike, train: PathLike, freq: int) -> None:
     temperature = 300.0
     steps = 10000
     freq = 100 # frequency of output in numbers of timesteps
-    atoms = read_proteindatabank(pdb)
+    atoms = read_proteindatabank(pdb,index=0)
     pbc = atoms.get_pbc()
     if all(pbc):
         cell = atoms.get_cell()
