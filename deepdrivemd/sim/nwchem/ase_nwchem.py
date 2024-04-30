@@ -193,7 +193,7 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
                          mult=1,
                          odft=None,
                          direct=None,
-                         maxiter=300, # for testing
+                         maxiter=150, # for testing
                          mulliken=None,
                          noprint="\"final vectors analysis\""),
                 theory="dft")
@@ -253,7 +253,11 @@ def run_nwchem(nwchem_top: PathLike, inpf: PathLike, outf: PathLike) -> None:
     elif not os.path.isdir(newpath):
         raise OSError(f"{newpath} exists but is not a directory")
     fpout = open(outf,"w")
-    subprocess.run([nwchem_task_man,"-np",nwchem_nproc,nwchem_exe,inpf],stdout=fpout,stderr=subprocess.STDOUT)
+    #FIXME We need to pick the right task manager so we can start calculation on the right resource
+    #DEBUG now we just run plain NWChem without mpirun/srun/etc.
+    #subprocess.run(["/hpcgpfs01/ic2software/openmpi/4.1.5-gcc-12.3.0/bin/ompi_info"],stdout=fpout,stderr=subprocess.STDOUT)
+    #subprocess.run([nwchem_task_man,"-n",nwchem_nproc,"--cpus-per-task=1","--ntasks-per-core=1",nwchem_exe,inpf],stdout=fpout,stderr=subprocess.STDOUT)
+    subprocess.run([nwchem_exe,inpf],stdout=fpout,stderr=subprocess.STDOUT)
     fpout.close()
     # Now cleanup the data files
     subprocess.run(["rm","-rf",newpath])

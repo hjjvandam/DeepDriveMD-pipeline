@@ -44,13 +44,15 @@ else:
     pdbs_path = Path(sys.argv[2])
     inputs = []
     filename = Path(pdbs_path,"pdb_files.txt")
+    tmp_path = Path("tmp.pdb")
     with open(str(filename), "r") as fp:
         lines = fp.readlines()
     for line in lines:
         pdb_path = Path(pdbs_path,line.strip())
         input_path = Path(test_path,Path(line.strip()).stem)
         input_name = input_path.with_suffix(".nwi")
-        ase_nwchem.nwchem_input(input_name,pdb_path)
+        ase_nwchem.clean_pdb(pdb_path,tmp_path)
+        ase_nwchem.nwchem_input(input_name,tmp_path)
         inputs.append(input_path)
 with open("inputs.txt", "w") as f:
     for filename in inputs:
