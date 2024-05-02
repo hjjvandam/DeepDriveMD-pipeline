@@ -73,10 +73,10 @@ class DeePMDInput(BaseSettings):
             "limit_pref_v": 0,
         },
         "training" : {
-            "stop_batch": 200000,
+            "stop_batch": 50000, # was 200000, reduced here for testing, 200000 iterations would take 2 hours
             "disp_file" : "lcurve.out",
             "disp_freq" : 2000,
-            "save_freq" : 20000,
+            "save_freq" : 10000, # was 20000, make sure that stop_batch is a multiple of this value
             "save_ckpt" : "model.ckpt",
             "validation_data" : {
                 "systems"    : [],
@@ -244,6 +244,9 @@ def train(train_path: PathLike, json_file: PathLike,
     else:
         subprocess.run(["dp","train",str(json_file)],stdout=sys.stdout)
     subprocess.run(["dp","freeze","-o",str(model_file)],stdout=sys.stdout)
-    subprocess.run(["dp","compress","-t",str(json_file),"-i",str(model_file),"-o",str(compressed_model_file)],stdout=sys.stdout)
+    # Normally we would use the compressed models but these models are rather large
+    # (raising questions about what compression means in this context) and for
+    # file quota restrictions I am avoiding using them for now.
+    #subprocess.run(["dp","compress","-t",str(json_file),"-i",str(model_file),"-o",str(compressed_model_file)],stdout=sys.stdout)
     os.chdir(cwd)
 
