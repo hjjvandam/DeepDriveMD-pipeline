@@ -165,7 +165,7 @@ class DDMD(object):
 
         # Maybe get from user??
         pdesc = rp.PilotDescription({'resource': 'local.localhost_test',
-                                     'runtime' : 30,
+                                     'runtime' : 3000,
 #                                     'runtime' : 4,
                                      'cores'   : self._cores})
 #                                     'cores'   : 1})
@@ -849,6 +849,19 @@ class DDMD(object):
         with open(str(filename), "r") as fp:
             line = fp.readline()
         Satisfy = eval(line)
+#DEBUG
+        if os.path.exists("file_1.txt"):
+            Satisfy = True
+        if os.path.exists("file_1.txt"):
+            with open("file_2.txt","w") as fp:
+                print("hello",file=fp)
+        if os.path.exists("file_0.txt"):
+            with open("file_1.txt","w") as fp:
+                print("hello",file=fp)
+        else:
+            with open("file_0.txt","w") as fp:
+                print("hello",file=fp)
+#DEBUG
         if Satisfy:
             #FIXME: Here we need to write resource allocation to the YAML file.
             # maybe for now we can skip this
@@ -857,15 +870,25 @@ class DDMD(object):
 
             # FIXME: ttype is not defined here
             if not self.cfg.aggregation_stage.skip_aggregation:
+#DEBUG
+                print("HVD: call generate_aggregating_stage")
+#DEBUG
                 self.generate_aggregating_stage()
             else:
+#DEBUG
+                print("HVD: call generate_machine_learning_stage")
+#DEBUG
                 self.generate_machine_learning_stage()
 #            self._submit_task(self, ttype, args=None, n=1, cpu=1, gpu=0, series: int=1, argvals='') #FIXME
-        filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
-        with open(str(filename), "r") as fp:
-            Structures = fp.readlines()
-        if len(Structures) > 0:
-            self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+        else: 
+#DEBUG
+            print("HVD: generate DFT1 tasks")
+#DEBUG
+            filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
+            with open(str(filename), "r") as fp:
+                Structures = fp.readlines()
+            if len(Structures) > 0:
+                self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
