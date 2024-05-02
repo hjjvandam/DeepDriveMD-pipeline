@@ -191,7 +191,7 @@ def nwchem_input(inpf: PathLike, pdb: PathLike) -> None:
                 symmetry="c1",
                 dft=dict(xc="scan",
                          mult=1,
-                         odft=None,
+                         cgmin=None,
                          direct=None,
                          maxiter=150, # for testing
                          mulliken=None,
