@@ -20,7 +20,7 @@ end
 dft
   xc scan
   mult 1
-  odft
+  cgmin
   direct
   maxiter 500
   mulliken

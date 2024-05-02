@@ -20,9 +20,9 @@ end
 dft
   xc scan
   mult 1
-  odft
   direct
   maxiter 500
+  cgmin
   mulliken
   noprint "final vectors analysis"
 end
