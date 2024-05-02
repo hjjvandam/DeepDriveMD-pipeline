@@ -5,7 +5,7 @@ queue: csi
 schema_: local
 # On IC2 we use the CSIHPC account
 project: csihpc
-walltime_min: 30
+walltime_min: 360
 max_iteration: 10
 # Source: https://www.sdcc.bnl.gov/information/institutional-cluster-gen2
 cpus_per_node: 48
