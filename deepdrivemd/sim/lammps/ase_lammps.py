@@ -126,7 +126,11 @@ def lammps_input(pdb: PathLike, train: PathLike, freq: int) -> None:
             mass = atomic_masses[chemical_symbols.index(cs)]
             fp.write(f"mass {ii} {mass}\n")
         fp.write( "\n")
-        fp.write( "timestep     0.001\n")
+        fp.write( "fix      fix_nve all nve\n")
+        fp.write( "minimize 1.0e-4 1.0e-6 100 1000\n")
+        fp.write( "unfix    fix_nve\n")
+        fp.write( "\n")
+        fp.write( "timestep     0.00025\n") # was 0.001
         fp.write(f"fix          fix_nvt  all nvt temp {temperature} {temperature} $(100.0*dt)\n")
         fp.write(f"dump         dump_all all dcd {freq} {lammps_trj}\n")
         fp.write( "thermo_style custom step temp etotal ke pe atoms\n")
@@ -239,7 +243,8 @@ def lammps_to_pdb(trj_file: PathLike, pdb_file: PathLike, indeces: List[int], da
             if ii >= len(indeces):
                 # We are done
                 with open("pdb_files.txt","w") as fp:
-                    print(pdb_list, file=fp)
+                    for pdb_file in pdb_list:
+                         print(pdb_file, file=fp)
                 return
             istep_lst = indeces[ii]
         print(f"lst, trj: {istep_lst} {istep_trj}")
