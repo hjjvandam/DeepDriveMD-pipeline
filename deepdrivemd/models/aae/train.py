@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -187,6 +188,9 @@ def main(
         num_features=cfg.num_features,
         encoder_filters=cfg.encoder_filters,
         encoder_kernel_sizes=cfg.encoder_kernel_sizes,
+        encoder_dilation=cfg.encoder_dilation,
+        encoder_padding=cfg.encoder_padding,
+        encoder_stride=cfg.encoder_stride,
         generator_filters=cfg.generator_filters,
         discriminator_filters=cfg.discriminator_filters,
         latent_dim=cfg.latent_dim,
@@ -204,7 +208,8 @@ def main(
 
     # optimizers
     optimizer_hparams = OptimizerHyperparams(
-        name=cfg.optimizer_name, hparams={"learning_rate": cfg.optimizer_lr}
+        name=cfg.optimizer_name, 
+        hparams={"lr": cfg.optimizer_lr}
     )
 
     # Save hparams to disk and load initial weights and create virtual h5 file
