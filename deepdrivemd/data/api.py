@@ -10,7 +10,15 @@ from deepdrivemd.utils import PathLike
 
 def glob_file_from_dirs(dirs: List[str], pattern: str) -> List[str]:
     """Return a list of all items matching `pattern` in multiple `dirs`."""
-    return [next(Path(d).glob(pattern)).as_posix() for d in dirs]
+    # Next raises a StopIteration exception when there are no more items in the list,
+    # this crashes the code.
+    #return [next(Path(d).glob(pattern)).as_posix() for d in dirs]
+    result = []
+    for d in dirs:
+        pattrn_files = Path(d).glob(pattern)
+        for pattrn_file in pattrn_files:
+            result.append(Path(pattrn_file).as_posix())
+    return result
 
 
 class Stage_API:
