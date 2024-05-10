@@ -27,8 +27,8 @@ class OutlierDetectionConfig(AgentTaskConfig):
     # Number of workers to use for LOF
     sklearn_num_jobs: int = -1
     # Machine learning model type
-    #model_type: str = "AAE3d"
-    model_type: str = "keras_cvae"
+    model_type: str = "AAE3d"
+    #model_type: str = "keras_cvae"
     # Inference batch size for encoder forward pass
     inference_batch_size: int = 128
 
