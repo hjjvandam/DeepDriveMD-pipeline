@@ -18,10 +18,10 @@ class LAMMPSConfig(MolecularDynamicsTaskConfig):
     #top_suffix: Optional[str] = ".top" # Topology suffix
     # We run only short MD simulations so we have no need to restart anything.
     #rst_suffix: Optional[str] = ".rst" # Restart suffix
-    simulation_length_ns: float = 0.002
-    report_interval_ps: float = 0.002
-    dt_ps: float = 0.002
-    temperature_kelvin: float = 310.0
+    simulation_length_ns: float = 0.0025
+    report_interval_ps: float = 0.0025
+    dt_ps: float = 0.00025
+    temperature_kelvin: float = 300.0
     #heat_bath_friction_coef: float = 1.0 # not available for Berendsen thermostat
     # Whether to wrap system, only implemented for nsp system
     # TODO: generalize this implementation.
@@ -31,9 +31,11 @@ class LAMMPSConfig(MolecularDynamicsTaskConfig):
     # LAMMPS install prefix directory
     lammps_prefix_path: Optional[Path] = None
     # Atom selection for LAMMPS
-    lammps_selection: List[str] = ["C", "O", "N"]
+    # In some places the full atom name is used (e.g. H1 or H2) and in some places just
+    # the chemical symbol survives (e.g. H). So for consistency we need to list both.
+    lammps_selection: List[str] = ["H", "H1", "H2", "H3", "H4", "C", "C1", "C2", "N", "O"]
     # Atom selection for MDAnalysis
-    mda_selection: str = "(name C) or (name N) or (name O)"
+    mda_selection: str = "(name H* C* N* O*)"
     # Distance threshold to use for computing contact (in Angstroms)
     threshold: float = 8.0
     # Write contact maps to HDF5
