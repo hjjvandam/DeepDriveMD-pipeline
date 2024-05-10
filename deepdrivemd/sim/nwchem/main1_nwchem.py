@@ -37,7 +37,7 @@ if not inputs_path.exists():
     # - perturb the initial molecular structure to generate more inputs
     inputs_cp = ase_nwchem.fetch_input(test_data)
     inputs_gn = ase_nwchem.perturb_mol(480,test_pdb)
-    inputs = inputs_cp + inputs_gn
+    inputs = inputs_gn + inputs_cp
 else:
     # We need to take new input files from the PDB structure generated
     # by the LAMMPS MD run
