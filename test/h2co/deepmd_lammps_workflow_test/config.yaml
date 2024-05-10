@@ -29,9 +29,7 @@ molecular_dynamics_stage:
         process_type: null
         threads_per_process: 0
         thread_type: null
-    #num_tasks: 16
-    #num_tasks: 48
-    num_tasks: 4
+    num_tasks: 48
     task_config:
         experiment_directory: set_by_deepdrivemd
         stage_idx: 0
@@ -72,14 +70,18 @@ machine_learning_stage:
       - conda activate pydeepmd
     executable: '/sdcc/u/hvandam/.conda/envs/pydeepmd/bin/python3.12'
     arguments: 
-      - /sdcc/u/hvandam/DeepDriveMD-pipeline/deepdrivemd/models/keras_cvae/train.py
+      - /sdcc/u/hvandam/DeepDriveMD-pipeline/deepdrivemd/models/aae/train.py
+      # The Keras API has changed so the script below currently does not work
+      #- /sdcc/u/hvandam/DeepDriveMD-pipeline/deepdrivemd/models/keras_cvae/train.py
     cpu_reqs:
         processes: 1
         process_type: null
         threads_per_process: 1
         thread_type: null
     gpu_reqs:
-        processes: 1
+        # FIXME: Currently don't have GPU versions of PyTorch and TensorFlow installed
+        #processes: 1
+        processes: 0
         process_type: null
         threads_per_process: 0
         thread_type: null
@@ -92,7 +94,7 @@ machine_learning_stage:
         node_local_path: set_by_deepdrivemd
         model_tag: set_by_deepdrivemd
         init_weights_path: null
-        last_n_h5_files: 1
+        last_n_h5_files: 48
         conv_filter_shapes:
           - - 3
             - 3
@@ -157,7 +159,7 @@ model_selection_stage:
         task_idx: 0
         output_path: set_by_deepdrivemd
         node_local_path: set_by_deepdrivemd
-        checkpoint_suffix: .h5
+        checkpoint_suffix: .pt
 agent_stage:
     pre_exec:
       - conda activate pydeepmd
