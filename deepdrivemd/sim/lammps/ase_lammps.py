@@ -25,11 +25,13 @@ import numpy as np
 import operator
 import os
 import subprocess
+import sys
 from ase.calculators.lammpsrun import LAMMPS
 from ase.data import atomic_masses, chemical_symbols
 from ase.io import iread
 from ase.io.lammpsdata import read_lammps_data, write_lammps_data
 from ase.io.proteindatabank import read_proteindatabank, write_proteindatabank
+from deepdrivemd.sim.lammps.config import LAMMPSConfig
 from MDAnalysis.analysis import distances, rms
 from mdtools.analysis.order_parameters import fraction_of_contacts
 from mdtools.writers import write_contact_map, write_point_cloud, write_fraction_of_contacts, write_rmsd
@@ -71,7 +73,7 @@ def _sort_uniq(sequence):
     """
     return map(operator.itemgetter(0),itertools.groupby(sorted(sequence)))
 
-def lammps_input(pdb: PathLike, train: PathLike, freq: int) -> None:
+def lammps_input(pdb: PathLike, train: PathLike, traj: PathLike, freq: int, steps: int) -> None:
     """Create the LAMMPS input file.
 
     The DeePMD models live in directories:
@@ -86,12 +88,12 @@ def lammps_input(pdb: PathLike, train: PathLike, freq: int) -> None:
     Arguments:
     pdb -- the PDB file with the structure
     train -- the path to the directory above the DeePMD models
+    traj -- the DCD trajectory file
     freq -- frequency of generating output
     """
     cwd = os.getcwd()
     temperature = 300.0
-    steps = 10000
-    freq = 100 # frequency of output in numbers of timesteps
+    subprocess.run(["cp",str(pdb),"lammps_input.pdb"])
     atoms = read_proteindatabank(pdb,index=0)
     pbc = atoms.get_pbc()
     if all(pbc):
@@ -101,7 +103,7 @@ def lammps_input(pdb: PathLike, train: PathLike, freq: int) -> None:
         atoms.set_cell(cell)
     lammps_data  = Path(cwd,"data_lammps_structure")
     lammps_input = Path(cwd,"in_lammps")
-    lammps_trj   = Path(cwd,"trj_lammps.dcd")
+    lammps_trj   = Path(traj)
     lammps_out   = Path(cwd,"out_lammps")
     # Taking compressed models out for now due to disk space limitations.
     # The compressed models are 10x larger than the uncompressed ones
@@ -234,8 +236,14 @@ def lammps_to_pdb(trj_file: PathLike, pdb_file: PathLike, indeces: List[int], da
     selection = universe.select_atoms("all")
     ii = 0
     istep_trj = -1
-    istep_lst = indeces[ii] 
     pdb_list = []
+    if ii >= len(indeces):
+        # We are done
+        with open("pdb_files.txt","w") as fp:
+            for pdb_file in pdb_list:
+                 print(pdb_file, file=fp)
+        return
+    istep_lst = indeces[ii] 
     for ts in universe.trajectory:
         istep_trj +=1
         while istep_lst <  istep_trj:
@@ -258,22 +266,24 @@ def lammps_to_pdb(trj_file: PathLike, pdb_file: PathLike, indeces: List[int], da
         for pdb_file in pdb_list:
             print(pdb_file, file=fp)
 
-def lammps_contactmap(trj_file: PathLike, pdb_file: PathLike, hdf5_file: PathLike):
+def lammps_contactmap(cfg: LAMMPSConfig, trj_file: PathLike, pdb_file: PathLike, hdf5_file: PathLike, report_steps: int, total_steps: int):
     """Write timesteps from the LAMMPS DCD format trajectory to PDB files."""
     hashno = str(abs(hash(trj_file)))
     trj = mda.Universe(pdb_file,trj_file)
     pdb = mda.Universe(pdb_file,pdb_file)
     sim = Simulation(pdb_file)
-    selection = trj.select_atoms("all")
-    atoms = [ag.name for ag in selection]
-    report_steps = 100
-    frames_per_h5 = int(10000/report_steps)
+    frames_per_h5 = int(total_steps/report_steps)
 
     reporter = OfflineReporter(
                    hdf5_file,report_steps,frames_per_h5=frames_per_h5,
                    wrap_pdb_file=None,reference_pdb_file=pdb_file,
-                   openmm_selection=atoms,mda_selection="all",
+                   openmm_selection=cfg.lammps_selection,
+                   mda_selection=cfg.mda_selection,
                    threshold=8.0,
-                   contact_map=False,point_cloud=True,fraction_of_contacts=False)
+                   contact_map=cfg.contact_map,
+                   point_cloud=cfg.point_cloud,
+                   fraction_of_contacts=cfg.fraction_of_contacts)
+    num_frames = 0
     for ts in trj.trajectory:
+        num_frames += 1
         reporter.report(sim,ts)

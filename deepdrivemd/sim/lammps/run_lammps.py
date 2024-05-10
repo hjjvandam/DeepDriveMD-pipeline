@@ -156,8 +156,7 @@ class Simulation:
     def __init__(self,pdb_file):
         self.pdb_file = Path(pdb_file)
         self.reporters = []
-        #self.topology = app.PDBFile(str(self.pdb_file)).topology
-        self.topology = None
+        self.topology = app.PDBFile(str(self.pdb_file)).topology
 
 def configure_reporters(
     sim: "app.Simulation",
@@ -204,13 +203,14 @@ def configure_simulation(
             init_pdb_dir,       # init_pdb_dir=ctx.init_pdb_dir,
             pdb_file,           # pdb_file=ctx.pdb_file,
             train_dir,          # train_dir=ctx.train_dir,
+            trajectory_file,    # trajectory_file=ctx.traj_file
             solvent_type,       # solvent_type=cfg.solvent_type,
             dt_ps,              # dt_ps=cfg.dt_ps,
             temperature_kelvin, # temperature_kelvin=cfg.temperature_kelvin,
             lammps_prefix_path  # lammps_prefix_path=cfg.lammps_prefix_path
         ) -> None:
     # Generate input file
-    ase_lammps.lammps_input(pdb_file,train_dir,10)
+    ase_lammps.lammps_input(pdb_file,train_dir,trajectory_file,10,10000)
     # For the simplest case we run LAMMPS on a single formaldehyde molecule
     # Minimization and equilibration would just restore the system to the 
     # original configuration, which is pointless. So for now we skip all
@@ -247,6 +247,7 @@ def run_simulation(cfg: LAMMPSConfig) -> None:
             init_pdb_dir=cfg.initial_pdb_dir.joinpath("system"),
             pdb_file=ctx.pdb_file,
             train_dir=ctx.train_dir,
+            trajectory_file=ctx.traj_file,
             solvent_type=cfg.solvent_type,
             dt_ps=cfg.dt_ps,
             temperature_kelvin=cfg.temperature_kelvin,
@@ -321,12 +322,15 @@ def run_simulation(cfg: LAMMPSConfig) -> None:
         #    num_retries += 1
         #if num_frames < frames_per_h5 and not num_retries < max_retries:
         #    raise IOError("Trajectory file nwchemdat_md.xyz corrupted")
-        dcd = MDAnalysis.Universe("nwchemdat_input.pdb",ctx.traj_file)
+        num_frames = 0
+        dcd = MDAnalysis.Universe("lammps_input.pdb",ctx.traj_file)
         for ts in dcd.trajectory:
+            num_frames += 1
             sim.reporters[0].report(sim,ts)
         failed, struct = ase_lammps.lammps_questionable(0.1,0.3,10)
         data_dir = os.getcwd()
         ase_lammps.lammps_to_pdb(ctx.traj_file,pdb_file,struct,data_dir)
+        ase_lammps.lammps_contactmap(cfg,ctx.traj_file,pdb_file,ctx.h5_prefix,report_steps,nsteps)
         # At this moment nwchemdat_md.pdb contain all atoms, i.e. solute and solvent
         # for the outlier detection we just want the solute atoms. Fix this
         # by overwriting nwchemdat_md.pdb with the input PDB file.
