@@ -438,7 +438,7 @@ class DDMD(object):
     def set_argparse(self):
         parser = argparse.ArgumentParser(description="NWChem - DeepDriveMD Synchronous")
         #FIXME Delete unneded ones and add the ones we need.
-        parser.add_argument('-c', '--config', 
+        parser.add_argument('-c', '--config',
                         help='YAML config file', type=str, required=True)
         parser.add_argument('--num_phases', type=int, default=3,
                         help='number of phases in the workflow')
@@ -667,7 +667,7 @@ class DDMD(object):
                            #'pre_exec'   : ['. %s/bin/activate' % ve_path,
                            #                'pip install pyyaml'],
                            # Activating a conda environment inside a Python virtual environment
-                           # can generate interesting problems. 
+                           # can generate interesting problems.
                            'pre_exec'       : ['conda activate %s' % ve_path],
                            'uid'            : ru.generate_id(ttype),
                            'ranks'          : 1,
@@ -1063,18 +1063,18 @@ class DDMD(object):
         return
         #cfg = self.cfg.dft
         #stage_api = self.api.dft
- 
+
         #task_idx = 0
         #output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
         #assert output_path is not None
- 
+
         ## Update base parameters
         #cfg.task_config.experiment_directory = self.cfg.experiment_directory
         #cfg.task_config.stage_idx = self.stage_idx
         #cfg.task_config.task_idx = task_idx
         #cfg.task_config.node_local_path = self.cfg.node_local_path
         #cfg.task_config.output_path = output_path
- 
+
         ## Write yaml configuration
         #cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         #assert cfg_path is not None
@@ -1088,18 +1088,18 @@ class DDMD(object):
         return
         #cfg = self.cfg.dft
         #stage_api = self.api.dft
- 
+
         #task_idx = 0
         #output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
         #assert output_path is not None
- 
+
         ## Update base parameters
         #cfg.task_config.experiment_directory = self.cfg.experiment_directory
         #cfg.task_config.stage_idx = self.stage_idx
         #cfg.task_config.task_idx = task_idx
         #cfg.task_config.node_local_path = self.cfg.node_local_path
         #cfg.task_config.output_path = output_path
- 
+
         ## Write yaml configuration
         #cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         #assert cfg_path is not None
@@ -1113,18 +1113,18 @@ class DDMD(object):
         return
         #cfg = self.cfg.dft
         #stage_api = self.api.dft
- 
+
         #task_idx = 0
         #output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
         #assert output_path is not None
- 
+
         ## Update base parameters
         #cfg.task_config.experiment_directory = self.cfg.experiment_directory
         #cfg.task_config.stage_idx = self.stage_idx
         #cfg.task_config.task_idx = task_idx
         #cfg.task_config.node_local_path = self.cfg.node_local_path
         #cfg.task_config.output_path = output_path
- 
+
         ## Write yaml configuration
         #cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         #assert cfg_path is not None

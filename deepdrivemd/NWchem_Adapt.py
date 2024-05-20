@@ -165,7 +165,7 @@ class DDMD(object):
 
         # Maybe get from user??
         pdesc = rp.PilotDescription({'resource': 'local.localhost_test',
-                                     'runtime' : 30,
+                                     'runtime' : 3000,
 #                                     'runtime' : 4,
                                      'cores'   : self._cores})
 #                                     'cores'   : 1})
@@ -185,9 +185,9 @@ class DDMD(object):
         self._DDMD_CPU  = cfg.cpu_reqs.cpu_processes
         self._DDMD_CPUt = cfg.cpu_reqs.cpu_threads
         self._DDMD_GPU  = cfg.gpu_reqs.gpu_processes
-        self._stage = 0 #There are 3 stages 0 ab-initio only
-                        #                   1 Both
-                        #                   2 DDMD only
+        self._stage     = 0 #There are 3 stages 0 ab-initio only
+                            #                   1 Both
+                            #                   2 DDMD only
 
         # Parser
         # We need a different solution for this. The parse_args a few lines back conflicts
@@ -214,7 +214,7 @@ class DDMD(object):
         num_nodes = max(1, num_nodes)
 
         #FIXME maybe we can use this but we need to be carefull here.
-        ddmd_pilot_desc = rp.PilotDescription({
+        self.ddmd_pilot_desc = rp.PilotDescription({
             "resource": cfg.resource,
             "queue": cfg.queue,
             "access_schema": cfg.schema_,
@@ -223,7 +223,8 @@ class DDMD(object):
             "cpus": cfg.cpus_per_node * cfg.hardware_threads_per_cpu * num_nodes,
             "gpus": cfg.gpus_per_node * num_nodes})
 
-        api = DeepDriveMD_API(cfg.experiment_directory)
+        self.api = DeepDriveMD_API(cfg.experiment_directory)
+        self.stage_idx = 0
 
 
     # --------------------------------------------------------------------------
@@ -232,7 +233,7 @@ class DDMD(object):
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     # I basically change the nubner of cpu and GPU here depending on stage -----
-    def generate_task_description(cfg: BaseStageConfig) -> rp.TaskDescription:
+    def generate_task_description(self, cfg: BaseStageConfig) -> rp.TaskDescription:
         self._control_ddmd(cfg)
         td = rp.TaskDescription()
         td.ranks          = self._DDMD_CPU
@@ -325,15 +326,16 @@ class DDMD(object):
                 cfg.task_config.pdb_file = next(filenames)
             else:
                 cfg.task_config.pdb_file = None
+            cfg.task_config.train_dir = Path(self.cfg.experiment_directory,"deepmd")
 
             cfg_path = stage_api.config_path(self.stage_idx, task_idx)
             assert cfg_path is not None
             cfg.task_config.dump_yaml(cfg_path)
-            td = generate_task_description(cfg)
+            td = self.generate_task_description(cfg)
             td.arguments += ["-c", cfg_path.as_posix()]
             td.uid = ru.generate_id(self.TASK_DDMD_MD)
+            tds.append(td)
 
-        tds.append(td)
         self._submit_task(tds, series = 1)
 
 
@@ -358,7 +360,7 @@ class DDMD(object):
         cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
-        td = generate_task_description(cfg)
+        td = self.generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
         td.uid = ru.generate_id(self.TASK_DDMD_SELECTION) #FIXME: Add a task for Aggregeation.
         self._submit_task(td, series = 1)
@@ -387,8 +389,8 @@ class DDMD(object):
         cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
-        td = generate_task_description(cfg)
-        td.arguments += ["-c", cfg_path.as_posiix()]
+        td = self.generate_task_description(cfg)
+        td.arguments += ["-c", cfg_path.as_posix()]
         td.uid = ru.generate_id(self.TASK_DDMD_TRAIN)
         self._submit_task(td, series = 1)
 
@@ -412,7 +414,7 @@ class DDMD(object):
         cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
-        td = generate_task_description(cfg)
+        td = self.generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
         td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
         self._submit_task(td, series = 1)
@@ -437,7 +439,7 @@ class DDMD(object):
         cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         assert cfg_path is not None
         cfg.task_config.dump_yaml(cfg_path)
-        td = generate_task_description(cfg)
+        td = self.generate_task_description(cfg)
         td.arguments += ["-c", cfg_path.as_posix()]
         td.uid = ru.generate_id(self.TASK_DDMD_AGENT)
         self._submit_task(td, series = 1)
@@ -589,6 +591,10 @@ class DDMD(object):
                 n   += len(self._tasks[series][ttype])
             idle -= n
 
+            if n > self._cores:
+                idle = 0
+                n = self._cores
+
             self._rep.ok('%s' % self._glyphs[ttype] * n)
 
         self._rep.plain('%s' % '-' * idle +
@@ -733,8 +739,8 @@ class DDMD(object):
 
             self._tasks[series][ttype][task.uid] = task
 
-            cores = task.description['cpu_processes'] \
-                  * task.description['cpu_threads']
+            cores = task.description['ranks'] \
+                  * task.description['cores_per_rank']
             self._cores_used += cores
 
             gpus = task.description['gpu_processes']
@@ -761,8 +767,8 @@ class DDMD(object):
             del self._tasks[series][ttype][task.uid]
             self.dump(task, 'unregister %s' % task.uid)
 
-            cores = task.description['cpu_processes'] \
-                  * task.description['cpu_threads']
+            cores = task.description['ranks'] \
+                  * task.description['cores_per_rank']
             self._cores_used -= cores
 
             gpus = task.description['gpu_processes']
@@ -875,6 +881,11 @@ class DDMD(object):
         with open(str(filename), "r") as fp:
             line = fp.readline()
         Satisfy = eval(line)
+        filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
+        with open(str(filename), "r") as fp:
+            lines = fp.readlines()
+        partial_satisfy = Satisfy and (len(lines) >  0)
+        fully_satisfy   = Satisfy and (len(lines) == 0)
         if Satisfy: #FIXME Huub we need 2 condition first inital and secon final
             if partial_satisfy:
                 #set  stage to both
@@ -917,6 +928,18 @@ class DDMD(object):
             return
 
         self.dump(task, 'completed ff train')
+        cfg = self.cfg.molecular_dynamics_stage
+        output_path = Path(self.cfg.experiment_directory,"molecular_dynamics_runs")
+        cfg.task_config.experiment_directory = self.cfg.experiment_directory
+        cfg.task_config.stage_idx = 0
+        cfg.task_config.task_idx = 0
+        cfg.task_config.node_local_path = self.cfg.node_local_path
+        cfg.task_config.output_path = output_path
+        initial_pdbs = self.api.get_initial_pdbs(cfg.task_config.initial_pdb_dir)
+        cfg.task_config.pdb_file = initial_pdbs[0]
+        os.makedirs(output_path,exist_ok=True)
+        cfg_path = Path(output_path,"config.yaml")
+        cfg.task_config.dump_yaml(cfg_path)
         self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
     # --------------------------------------------------------------------------
@@ -1077,7 +1100,7 @@ class DDMD(object):
         #cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         #assert cfg_path is not None
         #cfg.task_config.dump_yaml(cfg_path)
-        #td = generate_task_description(cfg)
+        #td = self.generate_task_description(cfg)
         #td.arguments += ["-c", cfg_path.as_posix()]
         #td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
         #self._submit_task(td, series = 1)
@@ -1102,7 +1125,7 @@ class DDMD(object):
         #cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         #assert cfg_path is not None
         #cfg.task_config.dump_yaml(cfg_path)
-        #td = generate_task_description(cfg)
+        #td = self.generate_task_description(cfg)
         #td.arguments += ["-c", cfg_path.as_posix()]
         #td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
         #self._submit_task(td, series = 1)
@@ -1127,7 +1150,7 @@ class DDMD(object):
         #cfg_path = stage_api.config_path(self.stage_idx, task_idx)
         #assert cfg_path is not None
         #cfg.task_config.dump_yaml(cfg_path)
-        #td = generate_task_description(cfg)
+        #td = self.generate_task_description(cfg)
         #td.arguments += ["-c", cfg_path.as_posix()]
         #td.uid = ru.generate_id(self.TASK_DDMD_SELECTION)
         #self._submit_task(td, series = 1)
