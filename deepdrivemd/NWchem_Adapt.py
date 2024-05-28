@@ -166,6 +166,7 @@ class DDMD(object):
         # Maybe get from user??
         pdesc = rp.PilotDescription({'resource': 'local.localhost_test',
                                      'runtime' : 3000,
+                                     'sandbox' : os.getenv('RADICAL_PILOT_BASE'),
 #                                     'runtime' : 4,
                                      'cores'   : self._cores})
 #                                     'cores'   : 1})
@@ -182,9 +183,9 @@ class DDMD(object):
         self._env_work_dir = cfg.experiment_directory
         self.cfg = cfg
 
-        self._DDMD_CPU  = cfg.cpu_reqs.cpu_processes
-        self._DDMD_CPUt = cfg.cpu_reqs.cpu_threads
-        self._DDMD_GPU  = cfg.gpu_reqs.gpu_processes
+        self._DDMD_CPU  = 1 # cfg.cpu_reqs.cpu_processes
+        self._DDMD_CPUt = 1 # cfg.cpu_reqs.cpu_threads
+        self._DDMD_GPU  = 0 # cfg.gpu_reqs.gpu_processes
         self._stage     = 0 #There are 3 stages 0 ab-initio only
                             #                   1 Both
                             #                   2 DDMD only
@@ -567,7 +568,7 @@ class DDMD(object):
     def close(self):
 
         if self._session is not None:
-            self._session.close()
+            self._session.close(download=True)
             self._session = None
 
 
@@ -914,6 +915,13 @@ class DDMD(object):
                 uids.extend(self._tasks[series][self.TASK_DFT3].keys())
                 self._cancel_tasks(uids)
                 #And let DDMD loop Continute with updated input set
+        else:
+            # continue to Ab-initio
+            filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
+            with open(str(filename), "r") as fp:
+                Structures = fp.readlines()
+            if len(Structures) > 0:
+                self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
