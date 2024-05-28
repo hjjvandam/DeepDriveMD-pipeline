@@ -126,7 +126,7 @@ class DDMD(object):
                           self.TASK_DDMD_AGENT      : 'A'}
 
         # bookkeeping
-        # FIXME There are lots off un used item here
+        # FIXME There are lots off unused items here
         self._iter           =  0
         self._iterDDMD1      =  0
         self._iterDDMD2      =  0
@@ -167,6 +167,7 @@ class DDMD(object):
         # Maybe get from user??
         pdesc = rp.PilotDescription({'resource': 'local.localhost_test',
                                      'runtime' : 3000,
+                                     'sandbox' : os.getenv('RADICAL_PILOT_BASE'),
 #                                     'runtime' : 4,
                                      'cores'   : self._cores})
 #                                     'cores'   : 1})
