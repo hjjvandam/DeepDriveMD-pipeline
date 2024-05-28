@@ -46,7 +46,8 @@ with open("inputs.txt", "r") as fp:
 for line in lines:
     filename = line.strip()
     test_out = Path(filename).with_suffix(".nwo")
-    test_dat.append(test_out)
+    if os.path.exists(test_out):
+        test_dat.append(test_out)
 ase_nwchem.nwchem_to_raw(test_dat)
 print("Convert raw files to NumPy files")
 ase_nwchem.raw_to_deepmd(deepmd_source_dir)
