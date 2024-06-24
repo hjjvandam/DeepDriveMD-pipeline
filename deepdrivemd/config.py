@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import List, Optional, Type, TypeVar
 
 import yaml
-from pydantic import BaseSettings as _BaseSettings, validator
+from pydantic import validator
+from pydantic_settings import BaseSettings as _BaseSettings
 
 from deepdrivemd.utils import PathLike
 
@@ -109,8 +110,8 @@ class BaseStageConfig(BaseSettings):
     pre_exec: List[str] = []
     executable: str = ""
     arguments: List[str] = []
-    cpu_reqs: CPUReqs = CPUReqs()
-    gpu_reqs: GPUReqs = GPUReqs()
+    cpu_reqs: CPUReqs = CPUReqs(process_type=None, thread_type=None)
+    gpu_reqs: GPUReqs = GPUReqs(process_type=None, thread_type=None)
 
 
 class MolecularDynamicsTaskConfig(BaseTaskConfig):
@@ -155,6 +156,12 @@ class MachineLearningTaskConfig(BaseTaskConfig):
     # Model checkpoint file to load initial model weights from.
     init_weights_path: Optional[Path] = None
 
+
+class DeePMDTaskConfig(BaseTaskConfig):
+    """Base class for specific model configs to inherit."""
+
+    # Dictionary with DeePMD setting
+    deepmd: dict = {}
 
 class MachineLearningStageConfig(BaseStageConfig):
     """Global ML configuration (written one per experiment)."""
