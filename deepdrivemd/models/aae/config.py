@@ -75,7 +75,7 @@ class AAEModelConfig(MachineLearningTaskConfig):
     # String which specifies from where to feed the dataset. Valid choices are `storage` and `cpu-memory`.
     dataset_location: str = "storage"
     # Project name for wandb logging
-    wandb_project_name: Optional[str]
+    wandb_project_name: Optional[str] = None
 
 
 if __name__ == "__main__":
