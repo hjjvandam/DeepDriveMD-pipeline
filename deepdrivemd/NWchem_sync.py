@@ -662,14 +662,14 @@ class DDMD(object):
 
                 # FIXME: uuid=ttype won't work - the uid needs to be *unique*
 
-                ve_path = "pydeepmd"
+                ve_path = "/hpcgpfs01/work/csi/hvandam/pydeepmd-3.11"
                 tds.append(rp.TaskDescription({
                            # FIXME HUUB: give correct environment name
                            #'pre_exec'   : ['. %s/bin/activate' % ve_path,
                            #                'pip install pyyaml'],
                            # Activating a conda environment inside a Python virtual environment
                            # can generate interesting problems.
-                           'pre_exec'       : ['conda activate %s' % ve_path],
+                           'pre_exec'       : ['. %s/bin/activate' % ve_path],
                            'uid'            : ru.generate_id(ttype),
                            'ranks'          : 1,
                            'cores_per_rank' : cpu,
