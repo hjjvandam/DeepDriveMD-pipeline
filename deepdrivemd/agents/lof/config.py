@@ -32,7 +32,7 @@ class OutlierDetectionConfig(AgentTaskConfig):
     # Inference batch size for encoder forward pass
     inference_batch_size: int = 128
 
-    @root_validator()
+    @root_validator(skip_on_failure=True)
     def num_outliers_check(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         num_intrinsic_outliers = values["num_intrinsic_outliers"]
         num_extrinsic_outliers = values["num_extrinsic_outliers"]
@@ -42,7 +42,7 @@ class OutlierDetectionConfig(AgentTaskConfig):
             )
         return values
 
-    @root_validator()
+    @root_validator(skip_on_failure=True)
     def scoring_method_check(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         intrinsic_score = values.get("intrinsic_score")
         extrinsic_score = values.get("extrinsic_score")
