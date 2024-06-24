@@ -225,14 +225,13 @@ class DDMD(object):
             args = ['{}/sim/nwchem/main1_nwchem.py'.format(self.args.work_dir)]
         elif ttype == self.TASK_DFT2:
             args = ['{}/sim/nwchem/main2_nwchem.py'.format(self.args.work_dir),
-                           '{}'.format(argument_val))] # this will need to get the instance
+                           '{}'.format(argument_val)] # this will need to get the instance
         elif ttype == self.TASK_DFT3:
             args = ['{}/sim/nwchem/main3_nwchem.py'.format(self.args.work_dir)]
 
         elif ttype == self.TASK_TRAIN_FF:
             args = ['{}/model/deepm/main_deepmd.py'.format(self.args.work_dir),
                        '{}'.format(argument_val)] #training folder name
-`
 
         elif ttype == self.TASK_TRAIN_MODEL:
             args = ['{}/Executables/training.py'.format(self.args.work_dir),
@@ -591,7 +590,7 @@ class DDMD(object):
 
                 tds.append(rp.TaskDescription({
                            'uid'            : ttype,
-                           'ranks'          : 1
+                           'ranks'          : 1,
                            'cores_per_rank' : cpu,
                            'gpus_per_rank'  : gpu,
                            'executable'     : 'python',
@@ -900,5 +899,7 @@ class DDMD(object):
 # ------------------------------------------------------------------------------
 #
 if __name__ == '__main__':
+    # Apparently there is no main(?)
+    pass
 
 # ------------------------------------------------------------------------------
