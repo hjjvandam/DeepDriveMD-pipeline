@@ -19,10 +19,10 @@ import sys
 from typing import List
 from os import PathLike
 from pathlib import Path
-from deepdrivemd.config import BaseSettings
+from deepdrivemd.config import DeePMDTaskConfig
 
-class DeePMDInput(BaseSettings):
-    deepmd = {
+class DeePMDInput(DeePMDTaskConfig):
+    deepmd: dict = {
         "model" : {
             "type_map" : ["h", "he", "li", "be", "b", "c", "n", "o", "f", "ne",
                           "na", "mg", "al", "si", "p", "s", "cl", "ar",
