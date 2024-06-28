@@ -129,10 +129,9 @@ class DDMD(object):
         self._iter           =  0
         self._DDMD_CPU       =  1
         self._DDMD_CPUt      =  1
-        self._DDMD_GPU       =  0
+        self._DDMD_GPU       =  1
         self._cores          = 48  # available cpu resources FIXME: maybe get from the user?
         self._gpus           =  4  # available gpu resources  ""
-        self._gpus           =  0  # for now... (Still need reinstall TensorFlow)
         self._avail_cores    = self._cores
         self._avail_gpus     = self._gpus
         self._cores_used     =  0
@@ -618,9 +617,30 @@ class DDMD(object):
 
         self.dump('submit MD simulations')
 
+        pdb_files = Path('{}/molecular_dynamics_runs/pdb_files.txt'.format(self.cfg.experiment_directory))
+        pdb_exists = pdb_files.exists()
+        if pdb_exists:
+            with open(str(pdb_files), "r") as fp:
+                lines = fp.readlines()
+            pdb_len = len(lines)
+
         # start ab-initio loop
-        self.stage = 1
-        self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')#TODO HUUB What is the configuration needed here?
+        if not pdb_exists:
+            # we are starting afresh
+           self._stage = 0
+           self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')#TODO HUUB What is the configuration needed here?
+        elif pdb_len > 0:
+           # we are restarting a calculation with DFT calculations to do
+           self._stage = 0
+           self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')#TODO HUUB What is the configuration needed here?
+        else:
+           # we are restarting a calculation but there are no DFT calculations left to do
+           # skip to force training instead
+           self._stage = 0
+           self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-1')#TODO HUUB What is the configuration needed here?
+           self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-2')#TODO HUUB What is the configuration needed here?
+           self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-3')#TODO HUUB What is the configuration needed here?
+           self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-4')#TODO HUUB What is the configuration needed here?
 
 
 
@@ -673,14 +693,14 @@ class DDMD(object):
 
                 # FIXME: uuid=ttype won't work - the uid needs to be *unique*
 
-                ve_path = "pydeepmd"
+                ve_path = "/hpcgpfs01/work/csi/hvandam/pydeepmd-3.11"
                 tds.append(rp.TaskDescription({
                            # FIXME HUUB: give correct environment name
                            #'pre_exec'   : ['. %s/bin/activate' % ve_path,
                            #                'pip install pyyaml'],
                            # Activating a conda environment inside a Python virtual environment
                            # can generate interesting problems.
-                           'pre_exec'       : ['conda activate %s' % ve_path],
+                           'pre_exec'       : ['. %s/bin/activate' % ve_path],
                            'uid'            : ru.generate_id(ttype),
                            'ranks'          : 1,
                            'cores_per_rank' : cpu,
@@ -887,24 +907,34 @@ class DDMD(object):
             lines = fp.readlines()
         partial_satisfy = Satisfy and (len(lines) >  0)
         fully_satisfy   = Satisfy and (len(lines) == 0)
+        self.dump(task, 'before Satisfy')
         if Satisfy: #FIXME Huub we need 2 condition first inital and secon final
+            self.dump(task, 'in Satisfy')
             if partial_satisfy:
+                self.dump(task, 'in partial_satisfy')
                 #set  stage to both
                 self._stage = 1
                 #run DDMD
-                if not self.cfg.aggregation_stage.skip_aggregation:
-                    self.generate_aggregating_stage()
-                else:
-                    self.generate_machine_learning_stage()
+                self.generate_molecular_dynamics_stage()
+                #if not self.cfg.aggregation_stage.skip_aggregation:
+                #    self.generate_aggregating_stage()
+                #else:
+                #    self.generate_machine_learning_stage()
                 # continue to Ab-initio
-                filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
-                with open(str(filename), "r") as fp:
-                    Structures = fp.readlines()
-                if len(Structures) > 0:
-                    self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+                #filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
+                #with open(str(filename), "r") as fp:
+                #    Structures = fp.readlines()
+                #if len(Structures) > 0:
+                self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
             # when fully satisfy:
             if full_satisfy:
                 #set stage to only DDMD
+                self.dump(task, 'in full_satisfy')
+                if self._stage == 0:
+                    self.dump(task, 'in full_satisfy stage == 0')
+                    # We are switching directly from DeePMD to DeepDriveMD without a mixed intermediate stage
+                    self._stage = 2
+                    self.generate_molecular_dynamics_stage()
                 self._stage = 2
                 #Kill any Ab-initio TASK
                 #FIXME ANDRE Please chech if this is correct.
@@ -917,11 +947,14 @@ class DDMD(object):
                 #And let DDMD loop Continute with updated input set
         else:
             # continue to Ab-initio
-            filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
-            with open(str(filename), "r") as fp:
-                Structures = fp.readlines()
-            if len(Structures) > 0:
-                self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+            self.dump(task, 'in else')
+            self._stage = 0
+            #filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
+            #with open(str(filename), "r") as fp:
+            #    Structures = fp.readlines()
+            #if len(Structures) > 0:
+            #    self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+            self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
@@ -948,7 +981,7 @@ class DDMD(object):
         os.makedirs(output_path,exist_ok=True)
         cfg_path = Path(output_path,"config.yaml")
         cfg.task_config.dump_yaml(cfg_path)
-        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=1, series=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
@@ -977,11 +1010,20 @@ class DDMD(object):
         '''
         series = self._get_series(task)
 
-        if len(self._tasks[series][self.TASK_DFT2]) > 1:
+        if len(self._tasks[series][self.TASK_DFT2]) > 12:
+            return
+
+        if len(self._tasks[series][self.TASK_DFT2]) > 0:
+            # Cancel remaining tasks and submit TASK_DFT3
+            uids  = list(self._tasks[series][self.TASK_DFT2].keys())
+            self._cancel_tasks(uids)
+            self.dump(task, 'completed dft2')
+            self._submit_task(self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
             return
 
         self.dump(task, 'completed dft2')
-        self._submit_task(self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+        if len(self._tasks[series][self.TASK_DFT3]) == 0:
+            self._submit_task(self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
 
 
     # --------------------------------------------------------------------------
@@ -996,10 +1038,10 @@ class DDMD(object):
             return
 
         self.dump(task, 'completed dft3')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-1')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-2')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-3')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-4')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-1')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-2')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-3')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-4')
 
     # --------------------------------------------------------------------------#
     #           CONTROLS FOR DDMD LOOP                                          #
