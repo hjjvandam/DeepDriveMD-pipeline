@@ -917,7 +917,7 @@ class DDMD(object):
         os.makedirs(output_path,exist_ok=True)
         cfg_path = Path(output_path,"config.yaml")
         cfg.task_config.dump_yaml(cfg_path)
-        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+        self._submit_task(self.TASK_MD, args=None, n=1, cpu=1, gpu=1, series=1, argvals='')
 
     # --------------------------------------------------------------------------
     #
@@ -968,10 +968,10 @@ class DDMD(object):
             return
 
         self.dump(task, 'completed dft3')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-1')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-2')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-3')
-        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=0, series=1, argvals='train-4')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-1')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-2')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-3')
+        self._submit_task(self.TASK_TRAIN_FF, args=None, n=1, cpu=1, gpu=1, series=1, argvals='train-4')
 
     # --------------------------------------------------------------------------#
     #           CONTROLS FOR DDMD LOOP                                          #
