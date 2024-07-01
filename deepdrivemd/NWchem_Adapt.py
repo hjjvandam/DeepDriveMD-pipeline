@@ -234,17 +234,24 @@ class DDMD(object):
     # --------------------------------------------------------------------------
     # I basically change the nubner of cpu and GPU here depending on stage -----
     def generate_task_description(self, cfg: BaseStageConfig) -> rp.TaskDescription:
+        self.dump(task, 'in generate_task_description A')
         self._control_ddmd(cfg)
+        self.dump(task, 'in generate_task_description B')
         td = rp.TaskDescription()
+        self.dump(task, 'in generate_task_description C')
         td.ranks          = self._DDMD_CPU
         td.cores_per_rank = self._DDMD_CPUt
         td.gpus_per_rank  = self._DDMD_GPU
+        self.dump(task, 'in generate_task_description D')
 #        td.ranks          = cfg.cpu_reqs.cpu_processes
 #        td.cores_per_rank = cfg.cpu_reqs.cpu_threads
 #        td.gpus_per_rank  = cfg.gpu_reqs.gpu_processes
         td.pre_exec       = copy.deepcopy(cfg.pre_exec)
+        self.dump(task, 'in generate_task_description E')
         td.executable     = copy.deepcopy(cfg.executable)
+        self.dump(task, 'in generate_task_description F')
         td.arguments      = copy.deepcopy(cfg.arguments)
+        self.dump(task, 'in generate_task_description G')
         return td
 
 
@@ -300,6 +307,8 @@ class DDMD(object):
 
 
     def generate_molecular_dynamics_stage(self):
+        task = 0
+        self.dump(task, 'in generate_molecular_dynamics_stage A')
         cfg = self.cfg.molecular_dynamics_stage
         stage_api = self.api.molecular_dynamics_stage
 
@@ -309,33 +318,50 @@ class DDMD(object):
         else:
             filenames = None
 
+        self.dump(task, 'in generate_molecular_dynamics_stage B '+str(cfg.num_tasks))
         tds = []
         for task_idx in range(cfg.num_tasks):
+            self.dump(task, 'in generate_molecular_dynamics_stage B A '+str(task_idx))
 
             output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
             assert output_path is not None
+            self.dump(task, 'in generate_molecular_dynamics_stage B B')
 
             # Update base parameters
             cfg.task_config.experiment_directory = self.cfg.experiment_directory
+            self.dump(task, 'in generate_molecular_dynamics_stage B C')
             cfg.task_config.stage_idx = self.stage_idx
+            self.dump(task, 'in generate_molecular_dynamics_stage B D')
             cfg.task_config.task_idx = task_idx
+            self.dump(task, 'in generate_molecular_dynamics_stage B E')
             cfg.task_config.node_local_path = self.cfg.node_local_path
+            self.dump(task, 'in generate_molecular_dynamics_stage B F')
             cfg.task_config.output_path = output_path
+            self.dump(task, 'in generate_molecular_dynamics_stage B G')
             if self.stage_idx == 0:
                 assert filenames is not None
                 cfg.task_config.pdb_file = next(filenames)
             else:
                 cfg.task_config.pdb_file = None
+            self.dump(task, 'in generate_molecular_dynamics_stage B H')
             cfg.task_config.train_dir = Path(self.cfg.experiment_directory,"deepmd")
+            self.dump(task, 'in generate_molecular_dynamics_stage B I')
 
             cfg_path = stage_api.config_path(self.stage_idx, task_idx)
+            self.dump(task, 'in generate_molecular_dynamics_stage B J')
             assert cfg_path is not None
             cfg.task_config.dump_yaml(cfg_path)
+            self.dump(task, 'in generate_molecular_dynamics_stage B K')
             td = self.generate_task_description(cfg)
+            self.dump(task, 'in generate_molecular_dynamics_stage B L')
             td.arguments += ["-c", cfg_path.as_posix()]
+            self.dump(task, 'in generate_molecular_dynamics_stage B M')
             td.uid = ru.generate_id(self.TASK_DDMD_MD)
+            self.dump(task, 'in generate_molecular_dynamics_stage B N')
             tds.append(td)
+            self.dump(task, 'in generate_molecular_dynamics_stage B O')
 
+        self.dump(task, 'in generate_molecular_dynamics_stage C '+str(len(tds)))
         self._submit_task(tds, series = 1)
 
 
@@ -905,8 +931,8 @@ class DDMD(object):
         filename = Path(self.cfg.experiment_directory,"molecular_dynamics_runs","pdb_files.txt")
         with open(str(filename), "r") as fp:
             lines = fp.readlines()
-        partial_satisfy = Satisfy and (len(lines) >  0)
-        fully_satisfy   = Satisfy and (len(lines) == 0)
+        partial_satisfy = (len(lines) >  0)
+        #fully_satisfy   = Satisfy and (len(lines) == 0)
         self.dump(task, 'before Satisfy')
         if Satisfy: #FIXME Huub we need 2 condition first inital and secon final
             self.dump(task, 'in Satisfy')
@@ -927,15 +953,8 @@ class DDMD(object):
                 #if len(Structures) > 0:
                 self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
             # when fully satisfy:
-            if full_satisfy:
-                #set stage to only DDMD
-                self.dump(task, 'in full_satisfy')
-                if self._stage == 0:
-                    self.dump(task, 'in full_satisfy stage == 0')
-                    # We are switching directly from DeePMD to DeepDriveMD without a mixed intermediate stage
-                    self._stage = 2
-                    self.generate_molecular_dynamics_stage()
-                self._stage = 2
+            #if full_satisfy:
+            else:
                 #Kill any Ab-initio TASK
                 #FIXME ANDRE Please chech if this is correct.
                 uids  = list(self._tasks[series][self.TASK_TRAIN_FF].keys())
@@ -945,6 +964,14 @@ class DDMD(object):
                 uids.extend(self._tasks[series][self.TASK_DFT3].keys())
                 self._cancel_tasks(uids)
                 #And let DDMD loop Continute with updated input set
+                #set stage to only DDMD
+                self.dump(task, 'in full_satisfy')
+                if self._stage == 0:
+                    self.dump(task, 'in full_satisfy stage == 0')
+                    # We are switching directly from DeePMD to DeepDriveMD without a mixed intermediate stage
+                    self._stage = 2
+                    self.generate_molecular_dynamics_stage()
+                self._stage = 2
         else:
             # continue to Ab-initio
             self.dump(task, 'in else')
