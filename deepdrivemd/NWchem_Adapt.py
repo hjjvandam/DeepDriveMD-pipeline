@@ -227,31 +227,57 @@ class DDMD(object):
         self.stage_idx = 0
 
 
+#     # --------------------------------------------------------------------------
+#     # --------------------------------------------------------------------------
+#     # ---------FUNCINALITIES FROM DDME------------------------------------------
+#     # --------------------------------------------------------------------------
+#     # --------------------------------------------------------------------------
+#     # I basically change the nubner of cpu and GPU here depending on stage -----
+#     def generate_task_description(self, cfg: BaseStageConfig) -> rp.TaskDescription:
+#         self.dump(task, 'in generate_task_description A')
+#         self._control_ddmd(cfg)
+#         self.dump(task, 'in generate_task_description B')
+#         td = rp.TaskDescription()
+#         self.dump(task, 'in generate_task_description C')
+#         td.ranks          = self._DDMD_CPU
+#         td.cores_per_rank = self._DDMD_CPUt
+#         td.gpus_per_rank  = self._DDMD_GPU
+#         self.dump(task, 'in generate_task_description D')
+# #        td.ranks          = cfg.cpu_reqs.cpu_processes
+# #        td.cores_per_rank = cfg.cpu_reqs.cpu_threads
+# #        td.gpus_per_rank  = cfg.gpu_reqs.gpu_processes
+#         td.pre_exec       = copy.deepcopy(cfg.pre_exec)
+#         self.dump(task, 'in generate_task_description E')
+#         td.executable     = copy.deepcopy(cfg.executable)
+#         self.dump(task, 'in generate_task_description F')
+#         td.arguments      = copy.deepcopy(cfg.arguments)
+#         self.dump(task, 'in generate_task_description G')
+#         return td
+
     # --------------------------------------------------------------------------
-    # --------------------------------------------------------------------------
-    # ---------FUNCINALITIES FROM DDME------------------------------------------
-    # --------------------------------------------------------------------------
-    # --------------------------------------------------------------------------
+    # If it stucks on  _control_ddmd we can move that in here with a if case.
     # I basically change the nubner of cpu and GPU here depending on stage -----
     def generate_task_description(self, cfg: BaseStageConfig) -> rp.TaskDescription:
         self.dump(task, 'in generate_task_description A')
-        self._control_ddmd(cfg)
-        self.dump(task, 'in generate_task_description B')
         td = rp.TaskDescription()
-        self.dump(task, 'in generate_task_description C')
-        td.ranks          = self._DDMD_CPU
-        td.cores_per_rank = self._DDMD_CPUt
-        td.gpus_per_rank  = self._DDMD_GPU
-        self.dump(task, 'in generate_task_description D')
-#        td.ranks          = cfg.cpu_reqs.cpu_processes
-#        td.cores_per_rank = cfg.cpu_reqs.cpu_threads
-#        td.gpus_per_rank  = cfg.gpu_reqs.gpu_processes
-        td.pre_exec       = copy.deepcopy(cfg.pre_exec)
+        self.dump(task, 'in generate_task_description B')
+        if self._stage == 1:
+            self.dump(task, 'in generate_task_description C')
+            td.ranks          = 1
+            td.cores_per_rank = 1
+        else :
+            self.dump(task, 'in generate_task_description D')
+            td.ranks          = cfg.cpu_reqs.processes
+            td.cores_per_rank = cfg.cpu_reqs.threads_per_process
         self.dump(task, 'in generate_task_description E')
-        td.executable     = copy.deepcopy(cfg.executable)
+        td.gpus_per_rank  = cfg.gpu_reqs.gpu_processes
         self.dump(task, 'in generate_task_description F')
-        td.arguments      = copy.deepcopy(cfg.arguments)
+        td.pre_exec       = copy.deepcopy(cfg.pre_exec)
         self.dump(task, 'in generate_task_description G')
+        td.executable     = copy.deepcopy(cfg.executable)
+        self.dump(task, 'in generate_task_description H')
+        td.arguments      = copy.deepcopy(cfg.arguments)
+        self.dump(task, 'in generate_task_description I')
         return td
 
 
