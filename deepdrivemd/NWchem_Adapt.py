@@ -182,9 +182,9 @@ class DDMD(object):
         self._env_work_dir = cfg.experiment_directory
         self.cfg = cfg
 
-        self._DDMD_CPU  = 1 # cfg.cpu_reqs.cpu_processes
-        self._DDMD_CPUt = 1 # cfg.cpu_reqs.cpu_threads
-        self._DDMD_GPU  = 0 # cfg.gpu_reqs.gpu_processes
+        self._DDMD_CPU  = 1 # cfg.cpu_reqs.processes
+        self._DDMD_CPUt = 1 # cfg.cpu_reqs.threads_per_process
+        self._DDMD_GPU  = 0 # cfg.gpu_reqs.processes
         self._stage     = 0 #There are 3 stages 0 ab-initio only
                             #                   1 Both
                             #                   2 DDMD only
@@ -258,19 +258,14 @@ class DDMD(object):
     # If it stucks on  _control_ddmd we can move that in here with a if case.
     # I basically change the nubner of cpu and GPU here depending on stage -----
     def generate_task_description(self, cfg: BaseStageConfig) -> rp.TaskDescription:
+        task = 0
         self.dump(task, 'in generate_task_description A')
+        self._control_ddmd(cfg)
         td = rp.TaskDescription()
-        self.dump(task, 'in generate_task_description B')
-        if self._stage == 1:
-            self.dump(task, 'in generate_task_description C')
-            td.ranks          = 1
-            td.cores_per_rank = 1
-        else :
-            self.dump(task, 'in generate_task_description D')
-            td.ranks          = cfg.cpu_reqs.processes
-            td.cores_per_rank = cfg.cpu_reqs.threads_per_process
-        self.dump(task, 'in generate_task_description E')
-        td.gpus_per_rank  = cfg.gpu_reqs.gpu_processes
+        self.dump(task, 'in generate_task_description C')
+        td.ranks          = self._DDMD_CPU
+        td.cores_per_rank = self._DDMD_CPUt
+        td.gpus_per_rank  = self._DDMD_GPU
         self.dump(task, 'in generate_task_description F')
         td.pre_exec       = copy.deepcopy(cfg.pre_exec)
         self.dump(task, 'in generate_task_description G')
@@ -927,11 +922,11 @@ class DDMD(object):
         if self._stage == 1: #This is the case when DDMD and AB-initio runs in parallel
             self._DDMD_CPU  = 1 # TODO Huub is 1 CPU is enough?
             self._DDMD_CPUt = 1 #      Same Question
-            self._DDMD_GPU  = cfg.gpu_reqs.gpu_processes # I kept the GPU as is
+            self._DDMD_GPU  = cfg.gpu_reqs.processes # I kept the GPU as is
         else:
-            self._DDMD_CPU  = cfg.cpu_reqs.cpu_processes
-            self._DDMD_CPUt = cfg.cpu_reqs.cpu_threads
-            self._DDMD_GPU  = cfg.gpu_reqs.gpu_processes
+            self._DDMD_CPU  = cfg.cpu_reqs.processes
+            self._DDMD_CPUt = cfg.cpu_reqs.threads_per_process
+            self._DDMD_GPU  = cfg.gpu_reqs.processes
 
     # --------------------------------------------------------------------------
 
