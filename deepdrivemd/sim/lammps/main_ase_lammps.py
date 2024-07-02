@@ -30,7 +30,7 @@ os.chdir(test_dir)
 
 ase_lammps.lammps_input(pdb,train,trajectory,freq,steps)
 ase_lammps.run_lammps()
-failed, struct = ase_lammps.lammps_questionable(0.1,0.3,freq)
+failed, struct = ase_lammps.lammps_questionable(0.003,0.3,freq)
 success = not failed
 with open("lammps_success.txt", "w") as fp:
     print(success, file=fp)
