@@ -1065,6 +1065,9 @@ class DDMD(object):
             # Cancel remaining tasks and submit TASK_DFT3
             uids  = list(self._tasks[series][self.TASK_DFT2].keys())
             self._cancel_tasks(uids)
+            # Wait until all remaining TASK_DFT2 tasks have terminated
+            while len(self._tasks[series][self.TASK_DFT2]) > 0:
+                time.sleep(0.01)
             self.dump(task, 'completed dft2')
             self._submit_task(self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
             return
