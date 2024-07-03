@@ -649,6 +649,8 @@ def nwchem_to_raw(nwofs: List[PathLike]) -> None:
             new_path = Path(nwof).with_suffix(".failed")
             os.replace(nwof,new_path)
             continue
+        except (OSError):
+            continue
         atom_list = _make_atom_list(symbols,atomicno)
         atom_list.sort(key=lambda tup: tup[1])
         if len(atom_list) <= 1:
