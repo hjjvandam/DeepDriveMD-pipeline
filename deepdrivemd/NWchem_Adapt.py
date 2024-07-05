@@ -1026,6 +1026,7 @@ class DDMD(object):
         cfg.task_config.output_path = output_path
         initial_pdbs = self.api.get_initial_pdbs(cfg.task_config.initial_pdb_dir)
         cfg.task_config.pdb_file = initial_pdbs[0]
+        self.dump(task, 'pdb: '+str(cfg.task_config.pdb_file))
         os.makedirs(output_path,exist_ok=True)
         cfg_path = Path(output_path,"config.yaml")
         cfg.task_config.dump_yaml(cfg_path)
@@ -1066,10 +1067,12 @@ class DDMD(object):
             uids  = list(self._tasks[series][self.TASK_DFT2].keys())
             self._cancel_tasks(uids)
             # Wait until all remaining TASK_DFT2 tasks have terminated
+            time.sleep(1.00)
             while len(self._tasks[series][self.TASK_DFT2]) > 0:
-                time.sleep(0.01)
+                time.sleep(1.00)
             self.dump(task, 'completed dft2')
-            self._submit_task(self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
+            if len(self._tasks[series][self.TASK_DFT3]) == 0:
+                self._submit_task(self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')
             return
 
         self.dump(task, 'completed dft2')
