@@ -45,7 +45,7 @@ def prob_replace_pdb(total,success,good_pdb,start_pdb):
 # where the NWChem executable lives.
 nwchem_top = None
 deepmd_source_dir = None
-test_data = Path("../../../../data/h2co/system")
+test_data = Path("../../../../../data/h2co/system")
 test_pdb = Path(test_data,"h2co-unfolded.pdb")
 test_inp = "h2co.nwi"
 test_out = "h2co.nwo"
