@@ -19,6 +19,7 @@
 
 # This one will run Adaptive and Asyncronous.
 import argparse
+import copy
 import json
 import math
 import os
