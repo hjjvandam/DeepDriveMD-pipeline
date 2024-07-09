@@ -637,11 +637,12 @@ class DDMD(object):
             n = 0
             for series in self._series:
                 n   += len(self._tasks[series][ttype])
-            idle -= n
 
-            if n > self._cores:
+            if n > idle:
+                n = idle
                 idle = 0
-                n = self._cores
+            else:
+                idle -= n
 
             self._rep.ok('%s' % self._glyphs[ttype] * n)
 
