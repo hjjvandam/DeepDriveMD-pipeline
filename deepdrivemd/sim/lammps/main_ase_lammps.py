@@ -30,7 +30,7 @@ os.chdir(test_dir)
 
 ase_lammps.lammps_input(pdb,train,trajectory,freq,steps)
 ase_lammps.run_lammps()
-failed, struct = ase_lammps.lammps_questionable(0.003,0.3,freq)
+failed, struct = ase_lammps.lammps_questionable(0.0003,0.3,freq)
 success = not failed
 with open("lammps_success.txt", "w") as fp:
     print(success, file=fp)
@@ -41,4 +41,5 @@ else:
 print(struct)
 ase_lammps.lammps_to_pdb(trajectory,pdb,struct,data_dir)
 ase_lammps.lammps_contactmap(cfg,trajectory,pdb,hdf5_basename,freq,steps)
+ase_lammps.lammps_save_model_devi()
 print("Done  LAMMPS run")
