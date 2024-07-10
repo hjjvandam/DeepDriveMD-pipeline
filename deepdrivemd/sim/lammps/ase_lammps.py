@@ -189,6 +189,25 @@ def lammps_questionable(force_crit_lo: float, force_crit_hi: float, freq: int) -
             line = fp.readline()
     return (failed, structures)
 
+def lammps_save_model_devi() -> None:
+    """Copy model_devi.out to a unique name for future reference
+
+    Model_devi.out details the deviation between the different DeePMD
+    models. This information should be kept to evaluate how the DeePMD
+    models improve over time with more training data. To generate
+    a unique name we simply hash the contents of the file and append
+    the hash to the filename.
+    """
+    import hashlib
+    with open("model_devi.out","rb") as fp:
+        lines = fp.readlines()
+    h = hashlib.sha256()
+    for line in lines:
+        h.update(line)
+    hashkey = h.hexdigest()
+    with open("model_devi.out-"+str(hashkey),"wb") as fp:
+        fp.writelines(lines)
+
 #class lammps_txt_trajectory:
 #    """A class to deal with LAMMPS trajectory data in txt format.
 #
