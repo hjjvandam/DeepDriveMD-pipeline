@@ -214,6 +214,23 @@ def gen_input(data_path: PathLike, json_path: PathLike) -> None:
     settings.set_type_map(_merge_type_maps(validate_data,training_data))
     settings.dump_json(Path(json_path))
 
+def save_lcurve() -> None:
+    """Copy lcurve.out to a unique name for future reference
+
+    lcurve.out lists data about the neural network training
+    convergence. This might contain useful information related
+    to the subsequent model performance.
+    """
+    import hashlib
+    with open("lcurve.out","rb") as fp:
+        lines = fp.readlines()
+    h = hashlib.sha256()
+    for line in lines:
+        h.update(line)
+    hashkey = h.hexdigest()
+    with open("lcurve.out-"+str(hashkey),"wb") as fp:
+        fp.writelines(lines)
+
 def train(train_path: PathLike, json_file: PathLike,
           model_file: PathLike = Path("model.pb"),
           compressed_model_file: PathLike = Path("compressed_model.pb"),
@@ -248,5 +265,6 @@ def train(train_path: PathLike, json_file: PathLike,
     # (raising questions about what compression means in this context) and for
     # file quota restrictions I am avoiding using them for now.
     #subprocess.run(["dp","compress","-t",str(json_file),"-i",str(model_file),"-o",str(compressed_model_file)],stdout=sys.stdout)
+    save_lcurve()
     os.chdir(cwd)
 
