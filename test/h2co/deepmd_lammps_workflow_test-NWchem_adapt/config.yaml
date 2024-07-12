@@ -79,10 +79,10 @@ machine_learning_stage:
         threads_per_process: 1
         thread_type: null
     gpu_reqs:
-        # FIXME: Currently don't have GPU versions of PyTorch and TensorFlow installed
-        processes: 1
+        # FIXME: Currently Pytorch runs out-of-memory on the GPU in the backward pass in autograd
+        processes: 0
         process_type: null
-        threads_per_process: 1
+        threads_per_process: 0
         thread_type: null
     retrain_freq: 1
     task_config:
