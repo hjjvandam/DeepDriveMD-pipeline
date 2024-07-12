@@ -40,6 +40,11 @@ def prob_replace_pdb(total,success,good_pdb,start_pdb):
     if rnd <= fraction_fails:
         # Copy good_pdb over start_pdb
         path = shutil.copy(good_pdb,start_pdb)
+        with open("switches.txt","a") as fp:
+            fp.write("restart dynamics from initial structure")
+    else:
+        with open("switches.txt","a") as fp:
+            fp.write("continue dynamics from last structure")
 
 # the NWCHEM_TOP environment variable needs to be set to specify
 # where the NWChem executable lives.
