@@ -228,52 +228,25 @@ class DDMD(object):
         self.stage_idx = 0
 
 
-#     # --------------------------------------------------------------------------
-#     # --------------------------------------------------------------------------
-#     # ---------FUNCINALITIES FROM DDME------------------------------------------
-#     # --------------------------------------------------------------------------
-#     # --------------------------------------------------------------------------
-#     # I basically change the nubner of cpu and GPU here depending on stage -----
-#     def generate_task_description(self, cfg: BaseStageConfig) -> rp.TaskDescription:
-#         self.dump(task, 'in generate_task_description A')
-#         self._control_ddmd(cfg)
-#         self.dump(task, 'in generate_task_description B')
-#         td = rp.TaskDescription()
-#         self.dump(task, 'in generate_task_description C')
-#         td.ranks          = self._DDMD_CPU
-#         td.cores_per_rank = self._DDMD_CPUt
-#         td.gpus_per_rank  = self._DDMD_GPU
-#         self.dump(task, 'in generate_task_description D')
-# #        td.ranks          = cfg.cpu_reqs.cpu_processes
-# #        td.cores_per_rank = cfg.cpu_reqs.cpu_threads
-# #        td.gpus_per_rank  = cfg.gpu_reqs.gpu_processes
-#         td.pre_exec       = copy.deepcopy(cfg.pre_exec)
-#         self.dump(task, 'in generate_task_description E')
-#         td.executable     = copy.deepcopy(cfg.executable)
-#         self.dump(task, 'in generate_task_description F')
-#         td.arguments      = copy.deepcopy(cfg.arguments)
-#         self.dump(task, 'in generate_task_description G')
-#         return td
-
+    # --------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
+    # ---------FUNCINALITIES FROM DDME------------------------------------------
+    # --------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
+    # I basically change the nubner of cpu and GPU here depending on stage -----
     # --------------------------------------------------------------------------
     # If it stucks on  _control_ddmd we can move that in here with a if case.
     # I basically change the nubner of cpu and GPU here depending on stage -----
     def generate_task_description(self, cfg: BaseStageConfig) -> rp.TaskDescription:
         task = 0
-        self.dump(task, 'in generate_task_description A')
         self._control_ddmd(cfg)
         td = rp.TaskDescription()
-        self.dump(task, 'in generate_task_description C')
         td.ranks          = self._DDMD_CPU
         td.cores_per_rank = self._DDMD_CPUt
         td.gpus_per_rank  = self._DDMD_GPU
-        self.dump(task, 'in generate_task_description F')
         td.pre_exec       = copy.deepcopy(cfg.pre_exec)
-        self.dump(task, 'in generate_task_description G')
         td.executable     = copy.deepcopy(cfg.executable)
-        self.dump(task, 'in generate_task_description H')
         td.arguments      = copy.deepcopy(cfg.arguments)
-        self.dump(task, 'in generate_task_description I')
         return td
 
 
@@ -330,7 +303,6 @@ class DDMD(object):
 
     def generate_molecular_dynamics_stage(self):
         task = 0
-        self.dump(task, 'in generate_molecular_dynamics_stage A')
         cfg = self.cfg.molecular_dynamics_stage
         stage_api = self.api.molecular_dynamics_stage
 
@@ -340,50 +312,33 @@ class DDMD(object):
         else:
             filenames = None
 
-        self.dump(task, 'in generate_molecular_dynamics_stage B '+str(cfg.num_tasks))
         tds = []
         for task_idx in range(cfg.num_tasks):
-            self.dump(task, 'in generate_molecular_dynamics_stage B A '+str(task_idx))
 
             output_path = stage_api.task_dir(self.stage_idx, task_idx, mkdir=True)
             assert output_path is not None
-            self.dump(task, 'in generate_molecular_dynamics_stage B B')
 
             # Update base parameters
             cfg.task_config.experiment_directory = self.cfg.experiment_directory
-            self.dump(task, 'in generate_molecular_dynamics_stage B C')
             cfg.task_config.stage_idx = self.stage_idx
-            self.dump(task, 'in generate_molecular_dynamics_stage B D')
             cfg.task_config.task_idx = task_idx
-            self.dump(task, 'in generate_molecular_dynamics_stage B E')
             cfg.task_config.node_local_path = self.cfg.node_local_path
-            self.dump(task, 'in generate_molecular_dynamics_stage B F')
             cfg.task_config.output_path = output_path
-            self.dump(task, 'in generate_molecular_dynamics_stage B G')
             if self.stage_idx == 0:
                 assert filenames is not None
                 cfg.task_config.pdb_file = next(filenames)
             else:
                 cfg.task_config.pdb_file = None
-            self.dump(task, 'in generate_molecular_dynamics_stage B H')
             cfg.task_config.train_dir = Path(self.cfg.experiment_directory,"deepmd")
-            self.dump(task, 'in generate_molecular_dynamics_stage B I')
 
             cfg_path = stage_api.config_path(self.stage_idx, task_idx)
-            self.dump(task, 'in generate_molecular_dynamics_stage B J')
             assert cfg_path is not None
             cfg.task_config.dump_yaml(cfg_path)
-            self.dump(task, 'in generate_molecular_dynamics_stage B K')
             td = self.generate_task_description(cfg)
-            self.dump(task, 'in generate_molecular_dynamics_stage B L')
             td.arguments += ["-c", cfg_path.as_posix()]
-            self.dump(task, 'in generate_molecular_dynamics_stage B M')
             td.uid = ru.generate_id(self.TASK_DDMD_MD)
-            self.dump(task, 'in generate_molecular_dynamics_stage B N')
             tds.append(td)
-            self.dump(task, 'in generate_molecular_dynamics_stage B O')
 
-        self.dump(task, 'in generate_molecular_dynamics_stage C '+str(len(tds)))
         self._submit_task(tds, series = 1)
 
 
@@ -1028,7 +983,7 @@ class DDMD(object):
         cfg.task_config.output_path = output_path
         initial_pdbs = self.api.get_initial_pdbs(cfg.task_config.initial_pdb_dir)
         cfg.task_config.pdb_file = initial_pdbs[0]
-        self.dump(task, 'pdb: '+str(cfg.task_config.pdb_file))
+        #self.dump(task, 'pdb: '+str(cfg.task_config.pdb_file))
         os.makedirs(output_path,exist_ok=True)
         cfg_path = Path(output_path,"config.yaml")
         cfg.task_config.dump_yaml(cfg_path)
