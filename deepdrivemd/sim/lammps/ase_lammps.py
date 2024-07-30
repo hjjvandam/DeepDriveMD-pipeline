@@ -151,7 +151,7 @@ def run_lammps() -> None:
     if not lammps_exe:
         raise RuntimeError("run_lammps: ASE_LAMMPSRUN_COMMAND undefined")
     if not Path(lammps_exe).is_file():
-        raise RuntimeError("run_lammps: ASE_LAMMPSRUN_COMMAND("+lammps_exe+") is not a file")
+        raise RuntimeError("run_lammps: ASE_LAMMPSRUN_COMMAND("+str(lammps_exe)+") is not a file")
     with open("in_lammps","r") as fp_in:
         subprocess.run([lammps_exe],stdin=fp_in)
 
