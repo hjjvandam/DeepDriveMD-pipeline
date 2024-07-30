@@ -9,11 +9,13 @@ train = Path(cwd,"../../models/deepmd")
 pdb = Path(cwd,"../../../data/h2co/system/h2co-unfolded.pdb")
 data_dir = "pdbs"
 test_dir = "test_dir"
+trajectory = Path(cwd,test_dir,"trj_lammps.dcd")
 freq = 100
+steps = 10000
 os.mkdir(test_dir)
 os.chdir(test_dir)
 
-ase_lammps.lammps_input(pdb,train,freq)
+ase_lammps.lammps_input(pdb,train,trajectory,freq,steps)
 ase_lammps.run_lammps()
 failed, struct = ase_lammps.lammps_questionable(0.1,0.3,freq)
 if failed:
