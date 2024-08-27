@@ -30,11 +30,11 @@ def write_to_file(filename, molecule_name, coord_file, type_map_file, type_file,
             # Write the header
             file.write("begin\n")
             file.write(f"comment {molecule_name} ({mol_identifier})\n")
-            file.write("atom ")
             coords = geometries[j]
             fcoords = forces[j]
             # Write the data to the file
             for i in range(num_atoms):
+                file.write("atom ")
                 x1, y1, z1 = coords[i]
                 e1 = elements[i]
                 fx1, fy1, fz1 = fcoords[i]
@@ -136,7 +136,11 @@ def find_molecule_folders(directory='.'):
             mol_identifier = entry[len('training_mol_'):]  # Extract the part after 'training_mol_'
             folder_path = os.path.join(directory, entry)
             folders.append((folder_path, mol_identifier))
-            print(folders)
+        if entry.startswith('validate_mol_') and os.path.isdir(os.path.join(directory, entry)):
+            mol_identifier = entry[len('validate_mol_'):]  # Extract the part after 'training_mol_'
+            folder_path = os.path.join(directory, entry)
+            folders.append((folder_path, mol_identifier))
+    print(folders)
     print("training_mol folders found")
     return folders
 
@@ -146,9 +150,13 @@ def generate_n2p2_test_files_for_all_folders():
     """
     print("going through files")
     folders = find_molecule_folders()
+    folder_path, mol_identifier = folders[0]
+    output_filename = os.path.join(folder_path, "..", "input.data")
+    create_file(output_filename)
     for folder_path, mol_identifier in folders:
         molecule_name = mol_identifier
-        output_filename = os.path.join(folder_path, f"{molecule_name}_input.data")
+        # Turns out N2P2 reads only 1 file for the whole training set
+        #output_filename = os.path.join(folder_path, f"{molecule_name}_input.data")
         coord_file = os.path.join(folder_path, "coord.raw")
         type_map_file = os.path.join(folder_path, "type_map.raw")
         type_file = os.path.join(folder_path, "type.raw")
@@ -161,7 +169,6 @@ def generate_n2p2_test_file(output_filename, molecule_name, coord_file, type_map
     """
     Generates the n2p2 test file by calling the necessary functions.
     """
-    create_file(output_filename)
     write_to_file(output_filename, molecule_name, coord_file, type_map_file, type_file, force_file, energy_file, mol_identifier)
 
 # Run the script for all folders
