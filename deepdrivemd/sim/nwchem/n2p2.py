@@ -23,13 +23,14 @@ def write_to_file(filename, molecule_name, coord_file, type_map_file, type_file,
         num_geom = len(geometries)
         num_atoms = len(coords)
         elements = read_elements(type_map_file, type_file, num_atoms)
+        elements_str = read_unique_elements(type_map_file)
         forces = read_forces(force_file)
         energies = read_energy(energy_file)
 
         for j in range(num_geom):
             # Write the header
             file.write("begin\n")
-            file.write(f"comment {molecule_name} ({mol_identifier})\n")
+            file.write(f"comment {molecule_name} ({elements_str})\n")
             coords = geometries[j]
             fcoords = forces[j]
             # Write the data to the file
@@ -93,6 +94,17 @@ def read_elements(type_map_file, type_file, num_atoms):
     print("element read")
     #print(elements)
     return elements
+
+def read_unique_elements(type_map_file):
+    """
+    Reads the element symbols from the type_map.raw file and return them as a string. 
+    """
+    with open(type_map_file, 'r') as file:
+        # Read all element symbols from the file (assuming they are space-separated on a single line)
+        element_symbols = file.read()
+    print("unique element read")
+    #print(element_symbols)
+    return element_symbols
 
 def read_forces(force_file):
     """
