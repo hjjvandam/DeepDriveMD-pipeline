@@ -82,6 +82,8 @@ def read_elements(type_map_file, type_file, num_atoms):
     with open(type_map_file, 'r') as file:
         # Read all element symbols from the file (assuming they are space-separated on a single line)
         element_symbols = file.read().split()
+        for ii in range(len(element_symbols)):
+            element_symbols[ii] = element_symbols[ii].capitalize()
     with open(type_file, 'r') as file:
         # Read all element indices from the file
         element_indeces = file.read().split()
@@ -101,10 +103,15 @@ def read_unique_elements(type_map_file):
     """
     with open(type_map_file, 'r') as file:
         # Read all element symbols from the file (assuming they are space-separated on a single line)
-        element_symbols = file.read()
+        element_symbols = file.read().split()
+    element_str = ""
+    for element in element_symbols:
+        if len(element_str) > 0:
+            element_str += " "
+        element_str += element.capitalize()
     print("unique element read")
     #print(element_symbols)
-    return element_symbols
+    return element_str
 
 def read_forces(force_file):
     """
