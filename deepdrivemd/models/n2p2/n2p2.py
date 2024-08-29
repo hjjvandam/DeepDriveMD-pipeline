@@ -253,31 +253,31 @@ def create_directories(data_path: Path = None) -> None:
     path = Path("scaling") / "input.nn"
     if not path.exists():
         os.chdir("scaling")
-        write_input(elements,6,6.0)
+        write_input(elements,6,0.0)
         append_random_seed(1)
         os.chdir("..")
     path = Path("train-1") / "input.nn"
     if not path.exists():
         os.chdir("train-1")
-        write_input(elements,6,6.0)
+        write_input(elements,6,0.0)
         append_random_seed(2)
         os.chdir("..")
     path = Path("train-2") / "input.nn"
     if not path.exists():
         os.chdir("train-2")
-        write_input(elements,6,6.0)
+        write_input(elements,6,0.0)
         append_random_seed(3)
         os.chdir("..")
     path = Path("train-3") / "input.nn"
     if not path.exists():
         os.chdir("train-3")
-        write_input(elements,6,6.0)
+        write_input(elements,6,0.0)
         append_random_seed(4)
         os.chdir("..")
     path = Path("train-4") / "input.nn"
     if not path.exists():
         os.chdir("train-4")
-        write_input(elements,6,6.0)
+        write_input(elements,6,0.0)
         append_random_seed(5)
         os.chdir("..")
     #
