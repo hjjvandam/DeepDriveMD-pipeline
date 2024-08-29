@@ -54,7 +54,7 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
     # We need to pass this to rattle, otherwise rattle 
     # internally creates and seeds its own random
     # number generator. Because this freezes the
-    # random number sequence every call to rattle does
+    # random number sequence every rattle call always does
     # the exact same thing (not very random at all).
     random = numpy.random.default_rng()
     with open(pdb,"r") as fp:
