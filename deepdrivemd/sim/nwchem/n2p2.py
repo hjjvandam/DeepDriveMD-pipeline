@@ -191,4 +191,5 @@ def generate_n2p2_test_file(output_filename, molecule_name, coord_file, type_map
     write_to_file(output_filename, molecule_name, coord_file, type_map_file, type_file, force_file, energy_file, mol_identifier)
 
 # Run the script for all folders
-sample = generate_n2p2_test_files_for_all_folders()
+if __name__ == "__main__":
+    sample = generate_n2p2_test_files_for_all_folders()
