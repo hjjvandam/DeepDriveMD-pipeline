@@ -11,6 +11,7 @@ These tests make sure that
 import os
 import ase_nwchem
 import glob
+import n2p2
 from pathlib import Path
 
 # the NWCHEM_TOP environment variable needs to be set to specify
@@ -27,7 +28,8 @@ os.mkdir(test_path)
 os.chdir(test_path)
 print("Generate NWChem input files")
 inputs_cp = ase_nwchem.fetch_input(test_data)
-inputs_gn = ase_nwchem.perturb_mol(200,test_pdb)
+#inputs_gn = ase_nwchem.perturb_mol(200,test_pdb)
+inputs_gn = ase_nwchem.perturb_mol(40,test_pdb)
 inputs = inputs_cp + inputs_gn
 print(inputs)
 print("Run NWChem")
@@ -38,6 +40,8 @@ for instance in inputs:
 print("Extract NWChem results")
 test_dat = glob.glob("*.nwo")
 ase_nwchem.nwchem_to_raw(test_dat)
-print("Convert raw files to NumPy files")
-ase_nwchem.raw_to_deepmd(deepmd_source_dir)
+#print("Convert raw files to NumPy files")
+#ase_nwchem.raw_to_deepmd(deepmd_source_dir)
+print("Convert raw files to N2P2 files")
+n2p2.generate_n2p2_test_files_for_all_folders()
 print("All done")
