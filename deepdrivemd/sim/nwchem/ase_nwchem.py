@@ -22,6 +22,7 @@ import subprocess
 from os import PathLike
 from pathlib import Path, PurePath
 from typing import List, Tuple
+from ase.atoms import Atoms
 from ase.calculators.nwchem import NWChem
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.io.nwchem import write_nwchem_in, read_nwchem_out
@@ -70,7 +71,8 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
              atoms = read_proteindatabank(pdb,index=0)
          # Perturb the atom positions
          if ii != 0:
-             atoms.rattle(stdev=0.50,rng=random)
+             #atoms.rattle(stdev=0.005,rng=random)
+             atoms = rattle(atoms=atoms,limit=2.0,rng=random)
          tmpfile = Path("./tmp.pdb")
          with open(tmpfile,"w") as fp:
              write_proteindatabank(fp,atoms)
@@ -82,6 +84,36 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
          nwchem_input(inpname,tmpfile)
     return name_list
 
+def rattle(atoms: Atoms, limit: float = 1.0, seed: int = None, rng = None) -> Atoms:
+    """My rattle implementation
+
+    ASE's rattle draws perturbations from a normal distribution. N2P2 will 
+    terminate the training if a structure contains an atom without neighbors.
+    So for N2P2 we need perturbations that have strict limits on the 
+    displacement, which is incompatible with normal distributions. 
+    Therefore, we need our own implementation of rattle that draws
+    perturbations from a uniform distribution.
+
+    DeePMD did not have any problems with isolated atoms, but it was very
+    problematic to install on HPC facilities. So we had to make a choice
+    and we chose to switch to N2P2, because it is easier for me to rewrite
+    code than to fix arcane installation conflicts.
+
+    - atoms is the ASE Atoms structure
+    - limit is the limit on the range of perturbations, i.e. the range is [-limit,limit]
+    """
+    if seed is not None and rng is not None:
+        raise ValueError('Please do not provide both seed and rng.')
+
+    if rng is None:
+        if seed is None:
+            seed = 42
+        rng = np.random.RandomState(seed)
+    positions = atoms.arrays['positions']
+    atoms.set_positions(positions +
+                        rng.uniform(low=-limit,high=limit, size=positions.shape))
+    return atoms
+    
 def clean_pdb(pdb: PathLike,tmp: PathLike) -> None:
     """Supress ASE junk.
 
