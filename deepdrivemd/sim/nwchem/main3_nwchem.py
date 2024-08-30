@@ -10,6 +10,7 @@ These tests make sure that
 
 import ase_nwchem
 import glob
+import n2p2
 import os
 from pathlib import Path
 import random
@@ -84,6 +85,8 @@ for line in lines:
 num_success = len(test_dat)
 prob_replace_pdb(num_inputs,num_success,test_pdb,Path("tmp.pdb"))
 ase_nwchem.nwchem_to_raw(test_dat)
-print("Convert raw files to NumPy files")
-ase_nwchem.raw_to_deepmd(deepmd_source_dir)
+#print("Convert raw files to NumPy files")
+#ase_nwchem.raw_to_deepmd(deepmd_source_dir)
+print("Convert raw files to N2P2 files")
+n2p2.generate_n2p2_test_files_for_all_folders()
 print("All done")
