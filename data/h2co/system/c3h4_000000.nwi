@@ -1,0 +1,38 @@
+echo
+
+title "c3h4_000000_dat"
+
+permanent_dir ./c3h4_000000_dat
+
+scratch_dir ./c3h4_000000_dat
+
+start c3h4_000000_dat
+
+geometry units angstrom nocenter noautosym noautoz
+  symmetry c1
+  H   0.000     0.936     1.876
+  H   0.000    -0.936     1.876
+  C   0.000     0.000     1.310
+  C   0.000     0.000     0.000
+  C   0.000     0.000    -1.310
+  H   0.936     0.000    -1.876
+  H  -0.936     0.000    -1.876
+end
+
+basis noprint
+   * library cc-pvdz
+end
+
+dft
+  xc scan
+  mult 1
+  direct
+  maxiter 500
+  mulliken
+  noprint "final vectors analysis"
+end
+
+
+
+task dft gradient
+
