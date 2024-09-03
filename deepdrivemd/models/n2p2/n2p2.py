@@ -1,4 +1,7 @@
+import glob
+import itertools
 import numpy as np
+import operator
 import os
 from pathlib import Path
 import sfparamgen as sfp
@@ -158,7 +161,7 @@ def write_input(elements: list[str], cutoff_type: int, cutoff_alpha: float) -> N
          # random_seed for every training input file. Which is probably the
          # easiest way of handling this situation.
          fp.write( "#random_seed - we'll append that at the end\n")
-         fp.write( "epochs 10\n")
+         fp.write( "epochs 20\n")
          fp.write( "normalize_data_set force\n")
          fp.write( "updater_type 1\n")
          fp.write( "parallel_mode 0\n")
@@ -178,10 +181,10 @@ def write_input(elements: list[str], cutoff_type: int, cutoff_alpha: float) -> N
          fp.write( "weights_min -1.0\n")
          fp.write( "weights_max  1.0\n")
          fp.write( "main_error_metric RMSEpa\n")
-         fp.write( "write_trainpoints 1\n")
-         fp.write( "write_trainforces   1\n")
-         fp.write( "write_weights_epoch 1\n")
-         fp.write( "write_neuronstats   1\n")
+         fp.write( "write_trainpoints 10\n")
+         fp.write( "write_trainforces   10\n")
+         fp.write( "write_weights_epoch 10\n")
+         fp.write( "write_neuronstats   10\n")
          fp.write( "write_trainlog\n")
          fp.write( "kalman_type    0\n")
          fp.write( "kalman_epsilon 1.0E-2\n")
@@ -303,3 +306,45 @@ def create_directories(data_path: Path = None) -> None:
         os.chdir("train-4")
         subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
         os.chdir("..")
+
+def select_best_model():
+    '''Select the "best" model for inference
+
+    We bluntly assume that the best model is the one that has been trained
+    the most, i.e. the model with the heighest epoch count.
+
+    In the training directories there will be files with names like
+
+      weights.001.000010.out
+
+    these filenames map onto a pattern
+
+      weights.N.M.out
+
+    where N is the atomic number of chemical elements, and M is the epoch
+    that corresponds to these weights. The model name for the inference
+    part corresponds to weights.N.data. 
+
+    So, here we want to establish the highest value of M and copy the files
+    for all N from weights.N.M.out to weights.N.data in the current 
+    directory.
+    '''
+    file_list    = glob.glob("weights.*.*.out")
+    epoch_list   = []
+    element_list = []
+    for filename in file_list:
+        fileinfo = filename.split(".")
+        element_list.append(fileinfo[1])
+        epoch_list.append(fileinfo[2])
+    element_list = _sort_uniq(element_list)
+    epoch_list   = _sort_uniq(epoch_list)
+    last_epoch   = epoch_list[-1]
+    for element in element_list:
+        subprocess.run(["cp",f"weights.{element}.{last_epoch}.out",f"weights.{element}.data"])
+
+def _sort_uniq(sequence):
+    """Return a sorted sequence of unique instances.
+
+    See https://stackoverflow.com/questions/2931672/what-is-the-cleanest-way-to-do-a-sort-plus-uniq-on-a-python-list
+    """
+    return list(map(operator.itemgetter(0),itertools.groupby(sorted(sequence))))

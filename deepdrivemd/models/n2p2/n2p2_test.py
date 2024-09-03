@@ -19,16 +19,20 @@ os.chdir(top)
 
 os.chdir(train1)
 n2p2.run_training()
+n2p2.select_best_model()
 os.chdir(top)
 
 os.chdir(train2)
 n2p2.run_training()
+n2p2.select_best_model()
 os.chdir(top)
 
 os.chdir(train3)
 n2p2.run_training()
+n2p2.select_best_model()
 os.chdir(top)
 
 os.chdir(train4)
 n2p2.run_training()
+n2p2.select_best_model()
 os.chdir(top)
