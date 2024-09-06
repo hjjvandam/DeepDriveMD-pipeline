@@ -40,6 +40,10 @@ from os import PathLike
 from pathlib import Path
 from typing import List
 
+N2P2   = 1
+DEEPMD = 2
+model  = N2P2
+
 class Atoms:
     """Atoms class to trick MD-tools reporter."""
     def __init__(self,atom_lst: List):
@@ -56,7 +60,7 @@ class Simulation:
     produced to a contact map file in HDF5 as required by DeepDriveMD. 
     At the same time I don't want to bring all of OpenMM into my
     environment just to be able to run this conversion. This Simulation
-    class with the Atoms class above allow me to give the OfflineReporter
+    class with the Atoms class above allows me to give the OfflineReporter
     what it needs without bringing all the OpenMM baggage along.
     """
     def __init__(self,pdb_file):
@@ -80,10 +84,16 @@ def lammps_input(pdb: PathLike, train: PathLike, traj: PathLike, freq: int, step
 
         {train}/train-*/compressed_model.pb
 
+    The N2P2 models live in directories:
+
+        {train}/train-*/weights.*.data
+
     The frequency specified here needs to match that in the
     trajectory checking. The trajectory will contain only 
     (#steps)/(freq) frames, whereas "model_devi.out" labels
-    each structure by the original timestep.
+    each structure by the original timestep ("model_devi.out" is
+    produced only by the DeePMD force field, for N2P2 we need to
+    generate something similar ourselves).
 
     Arguments:
     pdb -- the PDB file with the structure
@@ -91,6 +101,7 @@ def lammps_input(pdb: PathLike, train: PathLike, traj: PathLike, freq: int, step
     traj -- the DCD trajectory file
     freq -- frequency of generating output
     """
+    global model, DEEPMD, N2P2
     cwd = os.getcwd()
     temperature = 300.0
     subprocess.run(["cp",str(pdb),"lammps_input.pdb"])
@@ -105,11 +116,16 @@ def lammps_input(pdb: PathLike, train: PathLike, traj: PathLike, freq: int, step
     lammps_input = Path(cwd,"in_lammps")
     lammps_trj   = Path(traj)
     lammps_out   = Path(cwd,"out_lammps")
-    # Taking compressed models out for now due to disk space limitations.
-    # The compressed models are 10x larger than the uncompressed ones
-    # (also raising questions about what compression means here).
-    #deep_models = glob.glob(str(Path(train,"train-*/compressed_model.pb")))
-    deep_models = glob.glob(str(Path(train,"train-*/model.pb")))
+    if model == DEEPMD:
+        # Taking compressed models out for now due to disk space limitations.
+        # The compressed models are 10x larger than the uncompressed ones
+        # (also raising questions about what compression means here).
+        #deep_models = glob.glob(str(Path(train,"train-*/compressed_model.pb")))
+        deep_models = glob.glob(str(Path(train,"train-*/model.pb")))
+    elif model == N2P2:
+        deep_models = str(Path(train,"train-1"))
+    else:
+        raise RuntimeError(f"Illegal value for model {model}")
     with open(lammps_data,"w") as fp:
         write_lammps_data(fp,atoms)
     with open(lammps_input,"w") as fp:
@@ -118,11 +134,25 @@ def lammps_input(pdb: PathLike, train: PathLike, traj: PathLike, freq: int, step
         fp.write( "units        metal\n")
         fp.write( "atom_modify  sort 0 0.0\n\n")
         fp.write(f"read_data    {lammps_data}\n\n")
-        pair_style = "pair_style   deepmd"
-        for model in deep_models:
-            pair_style += f" {model}"
-        fp.write(f"{pair_style}\n")
-        fp.write( "pair_coeff   * *\n\n")
+        if model == DEEPMD:
+            pair_style = "pair_style   deepmd"
+            for model in deep_models:
+                pair_style += f" {model}"
+            fp.write(f"{pair_style}\n")
+            fp.write( "pair_coeff   * *\n\n")
+        elif model == N2P2:
+            pair_style = f"pair_style   nnp maxew 1000000 resetew yes dir {deep_models} emap \""
+            fp.write(f"{pair_style}")
+            element_list = list(enumerate(_sort_uniq(atoms.get_chemical_symbols())))
+            for i, cs in element_list:
+                ii = i+1
+                fp.write(f"{ii}:{cs}")
+                if ii < len(element_list):
+                    fp.write(",")
+            fp.write("\"\n")
+            fp.write( "pair_coeff   * * 6.0\n\n")
+        else:
+            raise RuntimeError(f"Invalid value of model {model}")
         for i, cs in enumerate(_sort_uniq(atoms.get_chemical_symbols())):
             ii = i+1
             mass = atomic_masses[chemical_symbols.index(cs)]
@@ -154,6 +184,68 @@ def run_lammps() -> None:
         raise RuntimeError("run_lammps: ASE_LAMMPSRUN_COMMAND("+str(lammps_exe)+") is not a file")
     with open("in_lammps","r") as fp_in:
         subprocess.run([lammps_exe],stdin=fp_in)
+
+def lammps_get_devi(trj_file: PathLike, pdb_file: PathLike) -> None:
+    """N2P2 does not produce "model_devi.out" so we need to create it
+
+    DeePMD automatically compares the results from the different models
+    for each of the structures in the trajectory, and summarizes the outcome
+    in the file "model_devi.out". 
+
+    N2P2 assumes that your model is fully trained for all conceivable cases
+    before you start running any MD. So it doesn't have an internal measure 
+    for the precision of the model. Hence we need to replicate this 
+    feature.
+    """
+    if model == DEEPMD:
+        return
+    # make a sub-directory for each model
+    scaling_path = Path("..")/".."/".."/".."/"models"/"n2p2"/"scaling"/"scaling.data"
+    scaling_name = Path("scaling.data")
+    input_path   = Path("..")/".."/".."/".."/"models"/"n2p2"/"scaling"/"input.nn"
+    input_name   = Path("input.nn")
+    for ii in range(1,5):
+        dir_name = f"model-{str(ii)}"
+        os.makedirs(dir_name,exist_ok=True)
+        os.chdir(dir_name)
+        subprocess.run(["ln","-s",str(scaling_path),str(scaling_name)])
+        subprocess.run(["ln","-s",str(input_path),  str(input_name)])
+        weights = glob.glob(str(Path(f"train-{str(ii)}")/"weights.???.data"))
+        for pathname in weights:
+            filename = os.path.basename(pathname)
+            if not os.path.exists(filename):
+                subprocess.run(["ln","-s",str(pathname),str(filename)])
+        os.chdir("..")
+    universe = mda.Universe(pdb_file,trj_file)
+    selection = universe.select_atoms("all")
+    for ts in universe.trajectory:
+        for ii in range(1,5):
+            os.chdir(dir_name)
+            write_input_data(selection)
+            os.chdir("..")
+        
+
+def write_input_data(selection) -> None:
+    """Given a structure write it to input.data
+
+    The input.data is the N2P2 structure file. This function writes 
+    a single given structure as an input.data file. As we plan
+    to give this file to nnp-predict we only need the atomic
+    coordinates. The nnp-predict tool will produce the energy
+    and forces for this structure.
+    """
+    with open("input.data","w") as fp:
+        fp.write("begin\n")
+        fp.write("comment structure\n")
+        for atom in selection:
+            x1, y1, z1    = atom.get_positions()
+            a1            = atom.element
+            fx1, fy1, fz1 = 0.0, 0.0, 0.0
+            c1, n1        = 0.0, 0.0
+            fp.write(f"atom {x1} {y1} {z1} {e1} {c1} {n1} {fx1} {fy1} {fz1}\n")
+        fp.write("charge 0.0\n")
+        fp.write("end\n")
+    
 
 def lammps_questionable(force_crit_lo: float, force_crit_hi: float, freq: int) -> List[int]:
     """Return a list of all structures with large force mismatches.
