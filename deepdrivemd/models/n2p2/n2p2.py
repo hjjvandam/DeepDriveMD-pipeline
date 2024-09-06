@@ -9,10 +9,190 @@ import subprocess
 import sys
 import typing
 
+class Molecule:
+    '''A simple class to store molecules
+
+    This class consists of a number of fields:
+    - chemical_symbols: a list of chemical symbols for the atoms
+    - coordinates: a list of atomic positions, each position is a list of x, y, and z
+    - forces: a list of atomic forces, each force is a list of f_x, f_y, and f_z
+    - energy: the energy associated with the molecule
+    '''
+    chemical_symbols = None
+    coordinates = None
+    forces = None
+    energy = None
+    def __init__(self,symbols=None,positions=None):
+        '''Initialize a molecule instance
+        '''
+        self.num_forces = 0
+        self.num_positions = 0
+        self.num_symbols = 0
+        if not symbols is None:
+            self.num_symbols = len(symbols)
+            self.chemical_symbols = []
+            for symbol in symbols:
+                self.chemical_symbols.append(symbol)
+        if not positions is None:
+            self.num_positions = len(positions)
+            self.coordinates = []
+            for coord in positions:
+                if len(coord) != 3:
+                    raise RuntimeError(f"Atom has {str(len(coord))} coordinates instead of 3: {str(coord)}")
+                self.coordinates.append(coord)
+        if self.num_symbols != 0:
+            if self.num_positions != 0:
+                if self.num_symbols != self.num_position:
+                    raise RuntimeError(f"There should be equal numbers of chemical symbols {str(num_symbols)} and atomic coordinates {str(num_positions)}")
+
+    def set_chemical_symbols(self,symbols):
+        '''Set the chemical symbols for the atoms
+        '''
+        if self.num_positions != 0:
+            if len(symbols) != self.num_positions:
+                raise RuntimeError(f"The number of symbols {str(len(symbols))} should match the number of atoms")
+        self.num_symbols = len(symbols)
+        self.chemical_symbols = []
+        for symbol in symbols:
+            self.chemical_symbols.append(symbol)
+
+    def set_positions(self,positions):
+        '''Set the positions for the atoms
+        '''
+        if self.num_symbols != 0:
+            if len(positions) != self.num_symbols:
+                raise RuntimeError(f"The number of positions {str(len(positions))} should match the number of atoms")
+        self.num_positions = len(positions)
+        self.positions = []
+        for position in positions:
+            self.positions.append(position)
+
+    def set_forces(self,forces):
+        '''Set the forces for the atoms
+        '''
+        if self.num_symbols != 0:
+            if len(forces) != self.num_symbols:
+                raise RuntimeError(f"The number of forces {str(len(forces))} should match the number of atoms")
+        self.num_forces = len(forces)
+        self.forces = []
+        for force in forces:
+            self.forces.append(force)
+
+    def set_energy(self,energy):
+        '''Set the energy for the molecule
+        '''
+        self.energy = energy
+
+    def get_energy(self):
+        return self.energy
+
+    def get_forces(self):
+        return self.forces
+
+    def get_positions(self):
+        return self.positions
+
+    def get_symbols(self):
+        return self.chemical_symbols
+
+def read_molecule(fp):
+    '''Read a molecule from an input.data file
+
+    We assume that the file is open and the file object
+    is provided in fp. Next a molecule instance is created,
+    the relevant pieces of information are scanned from the file
+    and added to the molecule object, which is returned.
+
+    The input data format follows the pattern
+
+        begin
+        comment anything goes here
+        atom x y z s c n fx fy fz
+        atom ...
+        energy e
+        charge 0.0
+        end
+
+    where
+
+        x, y, z    - the atomic coordinates
+        s          - the chemical symbol
+        c          - the partial charge (not used)
+        n          - the atomic number (not used)
+        fx, fy, fz - the atomic forces
+        e          - the molecular energy
+
+    This implementation scans the file for the "begin" keyword and
+    then reads and parses the lines until the "end" keyword is encountered.
+    Upon return the file object will be positioned just beyond the "end"
+    line.
+    '''
+    molecule = Molecule()
+    energy = None
+    positions = []
+    forces = []
+    symbols = []
+    line = fp.readline()
+    while not line.startswith("begin"):
+        line = fp.readline()
+    while not line.startswith("end"):
+        if line.startswith("begin"):
+            raise RuntimeError("Invalid file format. New \"begin\" present before closing \"end\".")
+        elif line.startswith("comment"):
+            pass
+        elif line.startswith("atom"):
+            components = line.split()
+            x = float(components[1])
+            y = float(components[2])
+            z = float(components[3])
+            s = str(components[4])
+            c = float(components[5])
+            n = float(components[6])
+            fx = float(components[7])
+            fy = float(components[8])
+            fz = float(components[9])
+            symbols.append(s)
+            positions.append([x,y,z])
+            forces.append([fx,fy,fz])
+        elif line.startswith("energy"):
+            components = line.split()
+            energy = components[1]
+        elif line.startswith("charge"):
+            pass
+        else:
+            raise RuntimeError(f"Invalid keyword: {line}")
+        line = fp.readline()
+    molecule.set_energy(energy)
+    molecule.set_symbols(symbols)
+    molecule.set_positions(positions)
+    molecule.set_forces(forces)
+    return molecule
+
+def write_molecule(fp,molecule):
+    '''Write the molecule to file in the input.data format
+
+    The file format in explained in the read_molecule
+    function.
+    '''
+    energy = molecule.get_energy()
+    symbols = molecule.get_symbols()
+    positions = molecule.get_positions()
+    forces = molecule.get_forces()
+    fp.write("begin\n")
+    for ii in range(len(symbols)):
+        s = symbols[ii]
+        x, y, z = positions[ii]
+        fx, fy, fz = forces[ii]
+        c, n = 0.0, 0.0
+        fp.write(f"atom {x} {y} {z} {s} {c} {n} {fx} {fy} {fz}\n")
+    fp.write("energy {energy}\n")
+    fp.write("end\n")
+
+
 def read_elements(fname: Path) -> list[str]:
     '''Read the elements in the training set
 
-    The chemical elements are list in the commend line in the input.data
+    The chemical elements are list in the comment line in the input.data
     file. The elements are the string in round brackets. This string
     is extracted, converted into a list and returned.
     '''
