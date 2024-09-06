@@ -5,7 +5,8 @@ import os
 from pathlib import Path
 
 cwd = os.getcwd()
-train = Path(cwd,"../../models/deepmd")
+#train = Path(cwd,"../../models/deepmd")
+train = Path(cwd,"../../models/n2p2")
 pdb = Path(cwd,"../../../data/h2co/system/h2co-unfolded.pdb")
 data_dir = "pdbs"
 test_dir = "test_dir"
@@ -17,6 +18,7 @@ os.chdir(test_dir)
 
 ase_lammps.lammps_input(pdb,train,trajectory,freq,steps)
 ase_lammps.run_lammps()
+ase_lammps.lammps_get_devi(trajectory,pdb)
 failed, struct = ase_lammps.lammps_questionable(0.1,0.3,freq)
 if failed:
     print("Reject trajectory")
