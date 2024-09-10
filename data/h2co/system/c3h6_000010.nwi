@@ -1,0 +1,40 @@
+echo
+
+title "c3h6_000010_dat"
+
+permanent_dir ./c3h6_000010_dat
+
+scratch_dir ./c3h6_000010_dat
+
+start c3h6_000010_dat
+
+geometry units angstrom nocenter noautosym noautoz
+  symmetry c1
+  H     -1.31924090    -0.00000061     1.15909489
+  H      0.02964890     0.88341733     1.92900225
+  H      0.02964948    -0.88341644     1.92900330
+  C     -0.23056147     0.20000002     1.32039155
+  C      0.51504085    -0.00000028     0.02598305
+  H      1.61044849    -0.00000076     0.09851079
+  C     -0.04969750     0.00000002    -1.18520497
+  H      0.55280124     0.00000003    -2.09643358
+  H     -1.13808910     0.00000072    -1.30434728
+end
+
+basis noprint
+   * library cc-pvdz
+end
+
+dft
+  xc scan
+  mult 1
+  direct
+  maxiter 500
+  mulliken
+  noprint "final vectors analysis"
+end
+
+
+
+task dft gradient
+
