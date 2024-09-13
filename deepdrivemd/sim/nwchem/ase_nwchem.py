@@ -36,7 +36,7 @@ DEEPMD=2
 env_model = os.getenv("FF_MODEL")
 if env_model == "DEEPMD":
     model = DEEPMD
-elif env_model == "N2P2"
+elif env_model == "N2P2":
     model = N2P2
 else:
     model = DEEPMD
@@ -92,6 +92,11 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
          # is poorly represented then the code will throw "extrapolation"
          # warnings and either aborts or generate abhorrently bad
          # trajectories.
+         #
+         # Note that N2P2 cannot deal with unbound atoms. As the bonding
+         # cutoff is typically 6 and bondlength are typically < 2 then
+         # as long as we don't perturb atom positions by more than 2
+         # bound atoms will still be bound after applying the perturbation.
          if ii == 0:
              pass
          elif ii < 25:
