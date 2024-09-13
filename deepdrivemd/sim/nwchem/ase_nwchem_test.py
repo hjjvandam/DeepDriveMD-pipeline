@@ -14,6 +14,16 @@ import glob
 import n2p2
 from pathlib import Path
 
+N2P2=1
+DEEPMD=2
+env_model = os.getenv("FF_MODEL")
+if env_model == "DEEPMD":
+    model = DEEPMD
+elif env_model == "N2P2"
+    model = N2P2
+else:
+    model = DEEPMD
+
 # the NWCHEM_TOP environment variable needs to be set to specify
 # where the NWChem executable lives.
 nwchem_top = None
@@ -29,7 +39,12 @@ os.chdir(test_path)
 print("Generate NWChem input files")
 inputs_cp = ase_nwchem.fetch_input(test_data)
 inputs_gn = ase_nwchem.perturb_mol(400,test_pdb)
-inputs = inputs_cp + inputs_gn
+if model == DEEPMD:
+    inputs = inputs_gn + inputs_cp
+elif model == N2P2:
+    inputs = inputs_gn
+else:
+    inputs = inputs_gn + inputs_cp
 print(inputs)
 print("Run NWChem")
 for instance in inputs:
@@ -39,8 +54,9 @@ for instance in inputs:
 print("Extract NWChem results")
 test_dat = glob.glob("*.nwo")
 ase_nwchem.nwchem_to_raw(test_dat)
-#print("Convert raw files to NumPy files")
-#ase_nwchem.raw_to_deepmd(deepmd_source_dir)
+if model == DEEPMD:
+    print("Convert raw files to NumPy files")
+    ase_nwchem.raw_to_deepmd(deepmd_source_dir)
 print("Convert raw files to N2P2 files")
 n2p2.generate_n2p2_test_files_for_all_folders()
 print("All done")
