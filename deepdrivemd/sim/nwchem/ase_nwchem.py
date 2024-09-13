@@ -31,6 +31,16 @@ from ase.io.proteindatabank import read_proteindatabank, write_proteindatabank
 # From https://www.weizmann.ac.il/oc/martin/tools/hartree.html [accessed March 28, 2024]
 hartree_to_ev = 27.211399
 
+N2P2=1
+DEEPMD=2
+env_model = os.getenv("FF_MODEL")
+if env_model == "DEEPMD":
+    model = DEEPMD
+elif env_model == "N2P2"
+    model = N2P2
+else:
+    model = DEEPMD
+
 def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
     """Write input files for a number of molecular structures.
 
@@ -39,6 +49,10 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
     initial structure we have been given and subject it to a random walk.
     Each resulting structure is stored until we have the prescribed number
     of structures. 
+    In practice this is a bad idea as a random walk can blunder into completely
+    unrealistic parts of conformational space. So instead we now take the
+    initial structure every time and perturb it. We also make sure that the
+    initial structure itself is included in the training set.
 
     The names of the new structures will be derived from the input PDB filename
     and include a number to ensure uniqueness. A list of structure names will
@@ -57,6 +71,7 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
     # number generator. Because this freezes the
     # random number sequence every rattle call always does
     # the exact same thing (not very random at all).
+    global model, DEEPMD, N2P2
     random = numpy.random.default_rng()
     with open(pdb,"r") as fp:
         atoms = read_proteindatabank(pdb,index=0)
@@ -70,7 +85,24 @@ def perturb_mol(number: int, pdb: PathLike) -> List[PathLike]:
          with open(pdb,"r") as fp:
              atoms = read_proteindatabank(pdb,index=0)
          # Perturb the atom positions
-         if ii != 0:
+         #
+         # For N2P2 we need a bunch of structures closely around
+         # the reference structure. The references structure will be
+         # used as the starting point for any MD. If this structure
+         # is poorly represented then the code will throw "extrapolation"
+         # warnings and either aborts or generate abhorrently bad
+         # trajectories.
+         if ii == 0:
+             pass
+         elif ii < 25:
+             atoms = rattle(atoms=atoms,limit=0.1,rng=random)
+         elif ii < 75:
+             atoms = rattle(atoms=atoms,limit=0.25,rng=random)
+         elif ii < 175:
+             atoms = rattle(atoms=atoms,limit=0.5,rng=random)
+         elif ii < 375:
+             atoms = rattle(atoms=atoms,limit=1.0,rng=random)
+         else:
              #atoms.rattle(stdev=0.005,rng=random)
              atoms = rattle(atoms=atoms,limit=2.0,rng=random)
          tmpfile = Path("./tmp.pdb")

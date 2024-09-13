@@ -14,6 +14,16 @@ import glob
 import sys
 from pathlib import Path
 
+N2P2=1
+DEEPMD=2
+env_model = os.getenv("FF_MODEL")
+if env_model == "DEEPMD":
+    model = DEEPMD
+elif env_model == "N2P2"
+    model = N2P2
+else:
+    model = DEEPMD
+
 # the NWCHEM_TOP environment variable needs to be set to specify
 # where the NWChem executable lives.
 nwchem_top = None
@@ -35,10 +45,22 @@ if not inputs_path.exists():
     # and store the list of inputs files
     # - grab a bunch of predefined input files
     # - perturb the initial molecular structure to generate more inputs
+    # Note that N2P2 gets hopelessly confused when the training set
+    # contains a mix of chemical structures. So for N2P2 we stick to
+    # just using perturbed structures of 1 chemical structure and 
+    # nothing else.
+    # For DeePMD a mixture of different chemical compounds is fine.
+    # So in that case we can add single atoms, diatomics and other
+    # small structures that are quick to evaluate and provide
+    # additional information.
     inputs_cp = ase_nwchem.fetch_input(test_data)
-    #inputs_gn = ase_nwchem.perturb_mol(480,test_pdb)
-    inputs_gn = ase_nwchem.perturb_mol(120,test_pdb)
-    inputs = inputs_gn + inputs_cp
+    inputs_gn = ase_nwchem.perturb_mol(475,test_pdb)
+    if model == DEEPMD:
+        inputs = inputs_gn + inputs_cp
+    elif model == N2P2:
+        inputs = inputs_gn
+    else:
+        inputs = inputs_gn + inputs_cp
 else:
     # We need to take new input files from the PDB structure generated
     # by the LAMMPS MD run
@@ -60,14 +82,3 @@ with open("inputs.txt", "w") as f:
         print(str(filename), file=f)
 print("Done NWChem input files")
 
-# print("Run NWChem")
-# for instance in inputs:
-#     test_inp = instance.with_suffix(".nwi")
-#     test_out = instance.with_suffix(".nwo")
-#     ase_nwchem.run_nwchem(nwchem_top,test_inp,test_out)
-# print("Extract NWChem results")
-# test_dat = glob.glob("*.nwo")
-# ase_nwchem.nwchem_to_raw(test_dat)
-# print("Convert raw files to NumPy files")
-# ase_nwchem.raw_to_deepmd(deepmd_source_dir)
-# print("All done")
