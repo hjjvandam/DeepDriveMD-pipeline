@@ -19,7 +19,7 @@ DEEPMD=2
 env_model = os.getenv("FF_MODEL")
 if env_model == "DEEPMD":
     model = DEEPMD
-elif env_model == "N2P2"
+elif env_model == "N2P2":
     model = N2P2
 else:
     model = DEEPMD

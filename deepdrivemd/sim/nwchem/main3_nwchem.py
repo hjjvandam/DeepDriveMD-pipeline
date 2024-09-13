@@ -17,6 +17,16 @@ import random
 import shutil
 import sys
 
+N2P2=1
+DEEPMD=2
+env_model = os.getenv("FF_MODEL")
+if env_model == "DEEPMD":
+    model = DEEPMD
+elif env_model == "N2P2":
+    model = N2P2
+else:
+    model = DEEPMD
+
 def prob_replace_pdb(total,success,good_pdb,start_pdb):
     """
     Probabilistically replace the MD start PDB file
