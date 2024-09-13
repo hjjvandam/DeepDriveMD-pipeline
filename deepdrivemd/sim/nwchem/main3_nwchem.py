@@ -90,6 +90,7 @@ if model == DEEPMD:
     # We shouldn't force DeePMD to be installed if we're
     # not using it. So skip this step if we're not 
     # using DeePMD.
+    print("Convert raw files to NumPy files")
     ase_nwchem.raw_to_deepmd(deepmd_source_dir)
 print("Convert raw files to N2P2 files")
 n2p2.generate_n2p2_test_files_for_all_folders()
