@@ -85,8 +85,12 @@ for line in lines:
 num_success = len(test_dat)
 prob_replace_pdb(num_inputs,num_success,test_pdb,Path("tmp.pdb"))
 ase_nwchem.nwchem_to_raw(test_dat)
-#print("Convert raw files to NumPy files")
-ase_nwchem.raw_to_deepmd(deepmd_source_dir)
+if model == DEEPMD:
+    # We need a DeePMD script for this conversion. 
+    # We shouldn't force DeePMD to be installed if we're
+    # not using it. So skip this step if we're not 
+    # using DeePMD.
+    ase_nwchem.raw_to_deepmd(deepmd_source_dir)
 print("Convert raw files to N2P2 files")
 n2p2.generate_n2p2_test_files_for_all_folders()
 print("All done")
