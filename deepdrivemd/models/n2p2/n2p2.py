@@ -1,10 +1,11 @@
 import glob
 import itertools
+import math
 import numpy as np
 import operator
 import os
 from pathlib import Path
-import sfparamgen as sfp
+import deepdrivemd.models.n2p2.sfparamgen as sfp
 import subprocess
 import sys
 import typing
@@ -188,6 +189,73 @@ def write_molecule(fp,molecule):
     fp.write("energy {energy}\n")
     fp.write("end\n")
 
+def compare_vectors(veca,vecb):
+    '''Compare two vector in 3D space
+
+    Returns the length of the difference vector
+    '''
+    dx = veca[0] - vecb[0]
+    dy = veca[1] - vecb[1]
+    dz = veca[2] - vecb[2]
+    r  = math.sqrt(dx*dx+dy*dy+dz*dz)
+    return r
+
+def compare_molecule_pair(mola: Molecule, molb: Molecule) -> (float, float, float, float, float, float):
+    '''Compare a single pair of molecules
+
+    See also the discussion in the compare_molecules function.
+    '''
+    energy_a = mola.get_energy()
+    energy_b = molb.get_energy()
+    e_max_diff = abs(energy_a - energy_b)
+    e_min_diff = e_max_diff
+    e_avg_diff = e_max_diff
+    forces_a = mola.get_forces()
+    forces_b = molb.get_forces()
+    lena = len(forces_a)
+    lenb = len(forces_b)
+    if not lena == lenb:
+        raise RuntimeError("molecule have different numbers of atoms")
+    f_max_diff = 0.0
+    f_min_diff = sys.float_info.max
+    f_avg_diff = 0.0
+    for ii in range(lena):
+        r = compare_vectors(forces_a[ii],forces_b[ii])
+        f_max_diff = max(f_max_diff,r)
+        f_min_diff = min(f_min_diff,r)
+        f_avg_diff = f_avg_diff + r/lena
+    return (e_max_diff,e_min_diff,e_avg_diff,f_max_diff,f_min_diff,f_avg_diff)
+
+def compare_molecules(molecules: list[Molecule]) -> (float, float, float, float, float, float):
+    '''Compare the molecule data of multiple molecules
+
+    We compare all pairs of molecules in the list of molecules provide.
+    We compares energies and atomic forces. We calculate the maximum, 
+    minimum and average absolute difference.
+
+    Note that to compare the forces in an coordinate invariant way 
+    we need to calculate the difference of the forces for an atom,
+    and then compute the length of the difference vector.
+    '''
+    lenm = len(molecules)
+    fac = 2.0/((lenm-1)*lenm)
+    e_max_diff = 0.0
+    e_min_diff = sys.float_info.max
+    e_avg_diff = 0.0
+    f_max_diff = 0.0
+    f_min_diff = sys.float_info.max
+    f_avg_diff = 0.0
+    for ii in range(lenm):
+        for jj in range(ii):
+            (e_max,e_min,e_avg,f_max,f_min,f_avg) = compare_molecule_pair(molecules[ii],molecules[jj])
+            e_max_diff = max(e_max_diff,e_max)
+            e_min_diff = min(e_min_diff,e_min)
+            e_avg_diff = e_avg_diff + e_avg*fac
+            f_max_diff = max(f_max_diff,f_max)
+            f_min_diff = min(f_min_diff,f_min)
+            f_avg_diff = f_avg_diff + f_avg*fac
+    return (e_max_diff,e_min_diff,e_avg_diff,f_max_diff,f_min_diff,f_avg_diff)
+
 
 def read_elements(fname: Path) -> list[str]:
     '''Read the elements in the training set
@@ -278,6 +346,19 @@ def run_training():
      nnp_nproc = 1
      with open("nnp-training.out","w") as fpout:
          subprocess.run([training_exe],stdout=fpout,stderr=subprocess.STDOUT)
+
+def run_predict():
+     '''Run nnp-predict
+     '''
+     n2p2_root = os.environ.get("N2P2_ROOT")
+     if not n2p2_root:
+         predict_exe = "nnp-predict"
+     else:
+         predict_exe = Path(n2p2_root) / "bin" / "nnp-predict"
+     predict_exe = str(predict_exe)
+     nnp_nproc = 1
+     with open("nnp-predict.out","w") as fpout:
+         subprocess.run([predict_exe,"0"],stdout=fpout,stderr=subprocess.STDOUT)
 
 def write_input(elements: list[str], cutoff_type: int, cutoff_alpha: float) -> None:
      '''Write an input file
