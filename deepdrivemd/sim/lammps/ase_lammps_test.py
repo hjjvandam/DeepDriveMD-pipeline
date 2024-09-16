@@ -2,18 +2,37 @@
 import ase_lammps
 import glob
 import os
+from deepdrivemd.sim.lammps.config import LAMMPSConfig
 from pathlib import Path
 
+N2P2=1
+DEEPMD=2
+env_model = os.getenv("FF_MODEL")
+if env_model == "DEEPMD":
+    model = DEEPMD
+elif env_model == "N2P2":
+    model = N2P2
+else:
+    model = DEEPMD
+
 cwd = os.getcwd()
+pdb = Path(cwd,"../../../data/h2co/system/h2co-unfolded.pdb")
+test_dir = "test_dir"
+os.mkdir(test_dir)
+config_file = Path(test_dir, "config.yaml")
+lammpscfg = LAMMPSConfig(reference_pdb_file = pdb)
+lammpscfg.dump_yaml(str(config_file))
+cfg = LAMMPSConfig.from_yaml(str(config_file))
 #train = Path(cwd,"../../models/deepmd")
 train = Path(cwd,"../../models/n2p2")
-pdb = Path(cwd,"../../../data/h2co/system/h2co-unfolded.pdb")
 data_dir = "pdbs"
-test_dir = "test_dir"
 trajectory = Path(cwd,test_dir,"trj_lammps.dcd")
-freq = 100
-steps = 10000
-os.mkdir(test_dir)
+if model == DEEPMD:
+    freq = 100
+    steps = 10000
+elif model == N2P2:
+    freq = 1
+    steps = 100
 os.chdir(test_dir)
 
 ase_lammps.lammps_input(pdb,train,trajectory,freq,steps)
@@ -28,7 +47,7 @@ print(struct)
 trajectory = Path(cwd,test_dir,"trj_lammps.dcd")
 hdf5_basename = Path(cwd,test_dir,"trj_lammps")
 ase_lammps.lammps_to_pdb(trajectory,pdb,struct,data_dir)
-ase_lammps.lammps_contactmap(trajectory,pdb,hdf5_basename)
+ase_lammps.lammps_contactmap(cfg,trajectory,pdb,hdf5_basename,freq,steps)
 
 exit()
 

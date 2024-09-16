@@ -21,6 +21,7 @@ import ase
 import glob
 import itertools
 import MDAnalysis as mda
+import deepdrivemd.models.n2p2.n2p2 as n2p2
 import numpy as np
 import operator
 import os
@@ -42,7 +43,13 @@ from typing import List
 
 N2P2   = 1
 DEEPMD = 2
-model  = N2P2
+env_model = os.getenv('FF_MODEL')
+if env_model == "DEEPMD":
+    model = DEEPMD
+elif env_model == "N2P2":
+    model = N2P2
+else:
+    model = DEEPMD
 
 class Atoms:
     """Atoms class to trick MD-tools reporter."""
@@ -162,7 +169,7 @@ def lammps_input(pdb: PathLike, train: PathLike, traj: PathLike, freq: int, step
         fp.write( "minimize 1.0e-4 1.0e-6 100 1000\n")
         fp.write( "unfix    fix_nve\n")
         fp.write( "\n")
-        fp.write( "timestep     0.00025\n") # was 0.001
+        fp.write( "timestep     0.000025\n") # was 0.001 
         fp.write(f"fix          fix_nvt  all nvt temp {temperature} {temperature} $(100.0*dt)\n")
         fp.write(f"dump         dump_all all dcd {freq} {lammps_trj}\n")
         fp.write( "thermo_style custom step temp etotal ke pe atoms\n")
@@ -204,13 +211,14 @@ def lammps_get_devi(trj_file: PathLike, pdb_file: PathLike) -> None:
     scaling_name = Path("scaling.data")
     input_path   = Path("..")/".."/".."/".."/"models"/"n2p2"/"scaling"/"input.nn"
     input_name   = Path("input.nn")
+    train_path   = Path("..")/".."/".."/".."/"models"/"n2p2"
     for ii in range(1,5):
         dir_name = f"model-{str(ii)}"
         os.makedirs(dir_name,exist_ok=True)
         os.chdir(dir_name)
         subprocess.run(["ln","-s",str(scaling_path),str(scaling_name)])
         subprocess.run(["ln","-s",str(input_path),  str(input_name)])
-        weights = glob.glob(str(Path(f"train-{str(ii)}")/"weights.???.data"))
+        weights = glob.glob(str(Path(train_path)/f"train-{str(ii)}"/"weights.???.data"))
         for pathname in weights:
             filename = os.path.basename(pathname)
             if not os.path.exists(filename):
@@ -218,12 +226,23 @@ def lammps_get_devi(trj_file: PathLike, pdb_file: PathLike) -> None:
         os.chdir("..")
     universe = mda.Universe(pdb_file,trj_file)
     selection = universe.select_atoms("all")
-    for ts in universe.trajectory:
-        for ii in range(1,5):
-            os.chdir(dir_name)
-            write_input_data(selection)
-            os.chdir("..")
-        
+    with open("model_devi.out","w") as fdevi:
+        step = -1
+        fdevi.write("#       step         max_devi_v         min_devi_v         avg_devi_v         max_devi_f         min_devi_f         avg_devi_f\n")
+        for ts in universe.trajectory:
+            step += 1
+            molecules = []
+            for ii in range(1,5):
+                dir_name = f"model-{str(ii)}"
+                os.chdir(dir_name)
+                write_input_data(selection)
+                n2p2.run_predict()
+                with open("output.data","r") as fp:
+                    molecule = n2p2.read_molecule(fp)
+                    molecules.append(molecule)
+                os.chdir("..")
+            (e_max,e_min,e_avg,f_max,f_min,f_avg) = n2p2.compare_molecules(molecules)
+            fdevi.write(f" {step:11d}   {e_max:16e}   {e_min:16e}   {e_avg:16e}   {f_max:16e}   {f_min:16e}   {f_avg:16e}\n")
 
 def write_input_data(selection) -> None:
     """Given a structure write it to input.data
@@ -238,8 +257,8 @@ def write_input_data(selection) -> None:
         fp.write("begin\n")
         fp.write("comment structure\n")
         for atom in selection:
-            x1, y1, z1    = atom.get_positions()
-            a1            = atom.element
+            x1, y1, z1    = atom.position
+            e1            = atom.element
             fx1, fy1, fz1 = 0.0, 0.0, 0.0
             c1, n1        = 0.0, 0.0
             fp.write(f"atom {x1} {y1} {z1} {e1} {c1} {n1} {fx1} {fy1} {fz1}\n")
