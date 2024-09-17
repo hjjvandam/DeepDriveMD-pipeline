@@ -93,7 +93,7 @@ class Molecule:
     def get_positions(self):
         return self.positions
 
-    def get_symbols(self):
+    def get_chemical_symbols(self):
         return self.chemical_symbols
 
 def read_molecule(fp):
@@ -136,6 +136,7 @@ def read_molecule(fp):
     line = fp.readline()
     while not line.startswith("begin"):
         line = fp.readline()
+    line = fp.readline()
     while not line.startswith("end"):
         if line.startswith("begin"):
             raise RuntimeError("Invalid file format. New \"begin\" present before closing \"end\".")
@@ -157,14 +158,14 @@ def read_molecule(fp):
             forces.append([fx,fy,fz])
         elif line.startswith("energy"):
             components = line.split()
-            energy = components[1]
+            energy = float(components[1])
         elif line.startswith("charge"):
             pass
         else:
             raise RuntimeError(f"Invalid keyword: {line}")
         line = fp.readline()
     molecule.set_energy(energy)
-    molecule.set_symbols(symbols)
+    molecule.set_chemical_symbols(symbols)
     molecule.set_positions(positions)
     molecule.set_forces(forces)
     return molecule
@@ -176,7 +177,7 @@ def write_molecule(fp,molecule):
     function.
     '''
     energy = molecule.get_energy()
-    symbols = molecule.get_symbols()
+    symbols = molecule.get_chemical_symbols()
     positions = molecule.get_positions()
     forces = molecule.get_forces()
     fp.write("begin\n")
