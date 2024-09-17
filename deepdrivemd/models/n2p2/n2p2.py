@@ -258,23 +258,52 @@ def compare_molecules(molecules: list[Molecule]) -> (float, float, float, float,
     return (e_max_diff,e_min_diff,e_avg_diff,f_max_diff,f_min_diff,f_avg_diff)
 
 
-def read_elements(fname: Path) -> list[str]:
+def read_elements(fname: Path) -> (list[str], list[int]):
     '''Read the elements in the training set
 
     The chemical elements are list in the comment line in the input.data
     file. The elements are the string in round brackets. This string
-    is extracted, converted into a list and returned.
+    is extracted, converted into a list and returned. For example
+    a comment line will look like
+
+        comment h4c2o1 (C H O)
+
+    We also count how many atoms there are of each element and return
+    these counts in a second list. We need these counts to screen 
+    the symmetry functions. E.g. if there is only 1 Oxygen atom you
+    cannot have an O-O pair, if you only have 2 Carbons you cannot
+    have a C-C-C bond angle, etc.
     '''
     with open(fname,'r') as fp:
         while True:
             entry = fp.readline()
             if entry.startswith("comment"):
+                #
                 tmp1 = entry.split("(")[1]
                 tmp2 = tmp1.split(")")[0]
                 elements = tmp2.split()
-                return elements
+                #
+                tmp1 = entry.split()[1]
+                # For each element find the corresponding count
+                counts = []
+                for element in elements:
+                    index_el = tmp1.index(element.lower())
+                    index_other = sys.maxsize
+                    for other in elements:
+                        index = tmp1.index(other.lower())
+                        if index > index_el:
+                            if index < index_other:
+                                index_other = index
+                    if index_other == sys.maxsize:
+                        # element is the last element in the string
+                        count = int(tmp1[index_el+len(element):])
+                    else:
+                        # index_el and index_other bracket the count
+                        count = int(tmp1[index_el+len(element):index_other])
+                    counts.append(count)
+                return (elements, counts)
 
-def gen_symfunc(elements: list[str], fname: Path, r_cutoff: float = 6.0) -> None:
+def gen_symfunc(elements: list[str], fname: Path, r_cutoff: float = 6.0, counts: list[int] = None) -> None:
     '''Generate the symmetry functions
 
     The N2P2 approach needs symmetry functions as inputs to the NNP
@@ -303,19 +332,29 @@ def gen_symfunc(elements: list[str], fname: Path, r_cutoff: float = 6.0) -> None
 
     with open(fname,'a') as fp:
         gen.symfunc_type = 'radial'
+        if not counts is None:
+            gen.filter_element_combinations(counts)
         gen.write_settings_overview(fileobj=fp)
         gen.write_parameter_strings(fileobj=fp)
         gen.symfunc_type = 'weighted_radial'
+        if not counts is None:
+            gen.filter_element_combinations(counts)
         gen.write_settings_overview(fileobj=fp)
         gen.write_parameter_strings(fileobj=fp)
         gen.zetas = [1.0,6.0]
         gen.symfunc_type = 'angular_narrow'
+        if not counts is None:
+            gen.filter_element_combinations(counts)
         gen.write_settings_overview(fileobj=fp)
         gen.write_parameter_strings(fileobj=fp)
         gen.symfunc_type = 'angular_wide'
+        if not counts is None:
+            gen.filter_element_combinations(counts)
         gen.write_settings_overview(fileobj=fp)
         gen.write_parameter_strings(fileobj=fp)
         gen.symfunc_type = 'weighted_angular'
+        if not counts is None:
+            gen.filter_element_combinations(counts)
         gen.write_settings_overview(fileobj=fp)
         gen.write_parameter_strings(fileobj=fp)
 
@@ -361,7 +400,7 @@ def run_predict():
      with open("nnp-predict.out","w") as fpout:
          subprocess.run([predict_exe,"0"],stdout=fpout,stderr=subprocess.STDOUT)
 
-def write_input(elements: list[str], cutoff_type: int, cutoff_alpha: float) -> None:
+def write_input(elements: list[str], cutoff_type: int, cutoff_alpha: float, counts: list[int]) -> None:
      '''Write an input file
 
      This function writes an input file for the N2P2 tools. 
@@ -456,7 +495,7 @@ def write_input(elements: list[str], cutoff_type: int, cutoff_alpha: float) -> N
          fp.write( "kalman_eta     0.01\n")
          fp.write( "kalman_etatau  2.302\n")
          fp.write( "kalman_etamax  1.0\n")
-     gen_symfunc(elements, Path("input.nn"), r_cutoff = 6.0)    
+     gen_symfunc(elements, Path("input.nn"), r_cutoff = 6.0, counts = counts)    
 
 def append_random_seed(num: int) -> None:
     '''Append a random random seed to input.nn
@@ -511,38 +550,38 @@ def create_directories(data_path: Path = None) -> None:
     #
     # Create input files
     #
-    elements = read_elements(data_path)
+    elements, counts = read_elements(data_path)
     for ii in range(len(elements)):
         element = elements[ii]
         elements[ii] = element.capitalize()
     path = Path("scaling") / "input.nn"
     if not path.exists():
         os.chdir("scaling")
-        write_input(elements,6,0.0)
+        write_input(elements,6,0.0,counts)
         append_random_seed(1)
         os.chdir("..")
     path = Path("train-1") / "input.nn"
     if not path.exists():
         os.chdir("train-1")
-        write_input(elements,6,0.0)
+        write_input(elements,6,0.0,counts)
         append_random_seed(2)
         os.chdir("..")
     path = Path("train-2") / "input.nn"
     if not path.exists():
         os.chdir("train-2")
-        write_input(elements,6,0.0)
+        write_input(elements,6,0.0,counts)
         append_random_seed(3)
         os.chdir("..")
     path = Path("train-3") / "input.nn"
     if not path.exists():
         os.chdir("train-3")
-        write_input(elements,6,0.0)
+        write_input(elements,6,0.0,counts)
         append_random_seed(4)
         os.chdir("..")
     path = Path("train-4") / "input.nn"
     if not path.exists():
         os.chdir("train-4")
-        write_input(elements,6,0.0)
+        write_input(elements,6,0.0,counts)
         append_random_seed(5)
         os.chdir("..")
     #

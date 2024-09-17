@@ -625,6 +625,47 @@ class SymFuncParamGenerator:
 
         return combinations
 
+    def filter_element_combinations(self,counts_list):
+        """Remove all element combination where the number of elements
+        occurances exceeds the given count
+
+        I.e. if a molecule has 2 Carbon atoms then the element combination
+        (C, C, C) makes no sense. 
+        """
+        elements_list = self.elements
+        if counts_list is None:
+            return
+        if len(elements_list) != len(counts_list):
+            raise RuntimeError(f"Illegal argument elements: {elements_list}, counts: {counts_list}")
+        for ii in range(len(elements_list)):
+            new_combinations = []
+            element = elements_list[ii]
+            count = counts_list[ii]
+            for combi in self._element_combinations:
+                if len(combi) == 1:
+                    new_combinations.append(combi)
+                elif len(combi) == 2:
+                    el1, el2 = combi
+                    num = 0
+                    if el1 == element:
+                        num += 1
+                    if el2 == element:
+                        num += 1
+                    if num <= count:
+                        new_combinations.append(combi)
+                elif len(combi) == 3:
+                    el1, el2, el3 = combi
+                    num = 0
+                    if el1 == element:
+                        num += 1
+                    if el2 == element:
+                        num += 1
+                    if el3 == element:
+                        num += 1
+                    if num <= count:
+                        new_combinations.append(combi)
+            self._element_combinations = new_combinations
+
     def write_parameter_strings(self, fileobj: Optional[TextIO]=None):
         """Write symmetry function parameter sets, formatted as n2p2 requires.
 
