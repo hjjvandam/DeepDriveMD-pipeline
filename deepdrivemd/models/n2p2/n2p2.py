@@ -440,6 +440,10 @@ def write_input(elements: list[str], cutoff_type: int, cutoff_alpha: float, coun
      num_elm = len(elements)
      if num_elm < 1:
          raise RuntimeError(f"N2P2 write_input: Invalid number of chemical elements: {num_elm}")
+     retrain = False
+     file_list  = glob.glob("weights.*.data")
+     if len(file_list) > 0:
+         retrain = True
      with open("input.nn","w") as fp:
          fp.write(f"number_of_elements {num_elm}\n")
          fp.write( "elements")
@@ -462,6 +466,8 @@ def write_input(elements: list[str], cutoff_type: int, cutoff_alpha: float, coun
          # random_seed for every training input file. Which is probably the
          # easiest way of handling this situation.
          fp.write( "#random_seed - we'll append that at the end\n")
+         if retrain:
+             fp.write("use_old_weights_short\n")
          fp.write( "epochs 20\n")
          fp.write( "normalize_data_set force\n")
          fp.write( "updater_type 1\n")
@@ -522,7 +528,7 @@ def create_directories(data_path: Path = None) -> None:
     #
     # Make directories if needed
     #
-    os.makedirs("scaling",exist_ok=True)
+    #os.makedirs("scaling",exist_ok=True)
     os.makedirs("train-1",exist_ok=True)
     os.makedirs("train-2",exist_ok=True)
     os.makedirs("train-3",exist_ok=True)
@@ -532,9 +538,9 @@ def create_directories(data_path: Path = None) -> None:
     #
     if data_path is None:
         data_path = Path("..") / "ab-initio" / "input.data"
-    path = Path("scaling") / "input.data"
-    if not path.exists():
-        subprocess.run(["ln","-s",str(data_path),str(path)])
+    #path = Path("scaling") / "input.data"
+    #if not path.exists():
+    #    subprocess.run(["ln","-s",str(data_path),str(path)])
     path = Path("train-1") / "input.data"
     if not path.exists():
         subprocess.run(["ln","-s",str(data_path),str(path)])
@@ -554,12 +560,12 @@ def create_directories(data_path: Path = None) -> None:
     for ii in range(len(elements)):
         element = elements[ii]
         elements[ii] = element.capitalize()
-    path = Path("scaling") / "input.nn"
-    if not path.exists():
-        os.chdir("scaling")
-        write_input(elements,6,0.0,counts)
-        append_random_seed(1)
-        os.chdir("..")
+    #path = Path("scaling") / "input.nn"
+    #if not path.exists():
+    #    os.chdir("scaling")
+    #    write_input(elements,6,0.0,counts)
+    #    append_random_seed(1)
+    #    os.chdir("..")
     path = Path("train-1") / "input.nn"
     if not path.exists():
         os.chdir("train-1")
@@ -587,25 +593,55 @@ def create_directories(data_path: Path = None) -> None:
     #
     # Create softlinks to scaling.data (this file will be generated when nnp-scaling is run)
     #
-    path = Path("train-1") / "scaling.data"
+    #path = Path("train-1") / "scaling.data"
+    #if not path.exists():
+    #    os.chdir("train-1")
+    #    subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
+    #    os.chdir("..")
+    #path = Path("train-2") / "scaling.data"
+    #if not path.exists():
+    #    os.chdir("train-2")
+    #    subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
+    #    os.chdir("..")
+    #path = Path("train-3") / "scaling.data"
+    #if not path.exists():
+    #    os.chdir("train-3")
+    #    subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
+    #    os.chdir("..")
+    #path = Path("train-4") / "scaling.data"
+    #if not path.exists():
+    #    os.chdir("train-4")
+    #    subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
+    #    os.chdir("..")
+
+def create_directory(dir_path: Path, data_path: Path = None) -> None:
+    '''Generate the directories for scaling and training runs
+    '''
+    #
+    # Make directories if needed
+    #
+    os.makedirs(str(dir_path),exist_ok=True)
+    #
+    # Softlink the training data
+    #
+    if data_path is None:
+        data_path = Path("..") / "ab-initio" / "input.data"
+    path = Path(dir_path) / "input.data"
     if not path.exists():
-        os.chdir("train-1")
-        subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
-        os.chdir("..")
-    path = Path("train-2") / "scaling.data"
+        subprocess.run(["ln","-s",str(data_path),str(path)])
+    #
+    # Create input files
+    #
+    num = int(str(dir_path)[-1])
+    elements, counts = read_elements(data_path)
+    for ii in range(len(elements)):
+        element = elements[ii]
+        elements[ii] = element.capitalize()
+    path = Path(dir_path) / "input.nn"
     if not path.exists():
-        os.chdir("train-2")
-        subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
-        os.chdir("..")
-    path = Path("train-3") / "scaling.data"
-    if not path.exists():
-        os.chdir("train-3")
-        subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
-        os.chdir("..")
-    path = Path("train-4") / "scaling.data"
-    if not path.exists():
-        os.chdir("train-4")
-        subprocess.run(["ln","-s","../scaling/scaling.data","scaling.data"])
+        os.chdir(dir_path)
+        write_input(elements,6,0.0,counts)
+        append_random_seed(num)
         os.chdir("..")
 
 def select_best_model():
