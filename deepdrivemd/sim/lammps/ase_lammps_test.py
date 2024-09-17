@@ -23,8 +23,10 @@ config_file = Path(test_dir, "config.yaml")
 lammpscfg = LAMMPSConfig(reference_pdb_file = pdb)
 lammpscfg.dump_yaml(str(config_file))
 cfg = LAMMPSConfig.from_yaml(str(config_file))
-#train = Path(cwd,"../../models/deepmd")
-train = Path(cwd,"../../models/n2p2")
+if model == DEEPMD:
+    train = Path(cwd,"../../models/deepmd")
+elif model == N2P2:
+    train = Path(cwd,"../../models/n2p2")
 data_dir = "pdbs"
 trajectory = Path(cwd,test_dir,"trj_lammps.dcd")
 if model == DEEPMD:
