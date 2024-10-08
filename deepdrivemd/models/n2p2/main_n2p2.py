@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 cwd = os.getcwd()
-data_path = Path(sys.argv[1])
+data_path = Path(sys.argv[1])/"input.data"
 train = Path(sys.argv[2])
 print("Begin training: "+str(train))
 
