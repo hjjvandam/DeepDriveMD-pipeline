@@ -46,6 +46,15 @@ from deepdrivemd.config import BaseStageConfig, ExperimentConfig
 from deepdrivemd.data.api import DeepDriveMD_API
 from deepdrivemd.utils import parse_args
 
+N2P2=1
+DEEPMD=2
+env_model = os.getenv("FF_MODEL")
+if env_model == "DEEPMD":
+    model = DEEPMD
+elif env_model == "N2P2":
+    model = N2P2
+else:
+    model = DEEPMD
 
 # ------------------------------------------------------------------------------
 # This is the main class
@@ -290,6 +299,8 @@ class DDMD(object):
 
 
     def generate_molecular_dynamics_stage(self):
+        global model, DEEPMD, N2P2
+
         cfg = self.cfg.molecular_dynamics_stage
         stage_api = self.api.molecular_dynamics_stage
 
@@ -316,7 +327,11 @@ class DDMD(object):
                 cfg.task_config.pdb_file = next(filenames)
             else:
                 cfg.task_config.pdb_file = None
-            cfg.task_config.train_dir = Path(self.cfg.experiment_directory,"deepmd")
+            if model == DEEPMD:
+                cfg.task_config.train_dir = Path(self.cfg.experiment_directory,"deepmd")
+            elif model == N2P2:
+                cfg.task_config.train_dir = Path(self.cfg.experiment_directory,"n2p2")
+
 
             cfg_path = stage_api.config_path(self.stage_idx, task_idx)
             assert cfg_path is not None
@@ -500,13 +515,20 @@ class DDMD(object):
 
     #  FIXME do not use argument_val and get them from the user using arguments
     def get_arguments(self, ttype, argument_val=""):
+        global model, DEEPMD, N2P2
         args = []
 
         if ttype == self.TASK_MD:
-            args = ['{}/sim/lammps/main_ase_lammps.py'.format(self._deepdrivemd_directory),
-                    '{}/molecular_dynamics_runs'.format(self.cfg.experiment_directory), # get test dir  path here #FIXME
-                    '{}/ab_initio'.format(self.cfg.experiment_directory), # get pbd file path here #FIXME
-                    '{}/deepmd'.format(self.cfg.experiment_directory)] #training folder name
+            if model == DEEPMD:
+                args = ['{}/sim/lammps/main_ase_lammps.py'.format(self._deepdrivemd_directory),
+                        '{}/molecular_dynamics_runs'.format(self.cfg.experiment_directory), # get test dir  path here #FIXME
+                        '{}/ab_initio'.format(self.cfg.experiment_directory), # get pbd file path here #FIXME
+                        '{}/deepmd'.format(self.cfg.experiment_directory)] #training folder name
+            elif model == N2P2:
+                args = ['{}/sim/lammps/main_ase_lammps.py'.format(self._deepdrivemd_directory),
+                        '{}/molecular_dynamics_runs'.format(self.cfg.experiment_directory), # get test dir  path here #FIXME
+                        '{}/ab_initio'.format(self.cfg.experiment_directory), # get pbd file path here #FIXME
+                        '{}/n2p2'.format(self.cfg.experiment_directory)] #training folder name
         elif ttype == self.TASK_DFT1:
             # Generate a set of input files and store the filenames in "inputs.txt"
             args = ['{}/sim/nwchem/main1_nwchem.py'.format(self._deepdrivemd_directory),
@@ -520,9 +542,15 @@ class DDMD(object):
             args = ['{}/sim/nwchem/main3_nwchem.py'.format(self._deepdrivemd_directory),
                     '{}/ab_initio'.format(self.cfg.experiment_directory)]
         elif ttype == self.TASK_TRAIN_FF:
-            args = ['{}/models/deepmd/main_deepmd.py'.format(self._deepdrivemd_directory),
-                    '{}/ab_initio'.format(self.cfg.experiment_directory),
-                    '{}/deepmd/{}'.format(self.cfg.experiment_directory,argument_val)] #training folder name
+            if model == DEEPMD:
+                args = ['{}/models/deepmd/main_deepmd.py'.format(self._deepdrivemd_directory),
+                        '{}/ab_initio'.format(self.cfg.experiment_directory),
+                        '{}/deepmd/{}'.format(self.cfg.experiment_directory,argument_val)] #training folder name
+            elif model == N2P2:
+                args = ['{}/models/n2p2/main_n2p2.py'.format(self._deepdrivemd_directory),
+                        '{}/ab_initio'.format(self.cfg.experiment_directory),
+                        '{}/n2p2/{}'.format(self.cfg.experiment_directory,argument_val)] #training folder name
+
 
 #         elif ttype == self.TASK_DDMD: #TODO: ask to to HUUB
 #             args = ['{}/Executables/training.py'.format(self.args.work_dir),
@@ -610,6 +638,7 @@ class DDMD(object):
         # start ab-initio loop
         self.stage = 1
         self._submit_task(self.TASK_DFT1, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')#TODO HUUB What is the configuration needed here?
+        #self._submit_task(self.TASK_DFT3, args=None, n=1, cpu=1, gpu=0, series=1, argvals='')#TODO HUUB What is the configuration needed here?
 
 
 
