@@ -6,6 +6,16 @@ from pathlib import Path
 from deepdrivemd.sim.lammps.config import LAMMPSConfig
 import sys
 
+N2P2=1
+DEEPMD=2
+env_model = os.getenv("FF_MODEL")
+if env_model == "DEEPMD":
+    model = DEEPMD
+elif env_model == "N2P2":
+    model = N2P2
+else:
+    model = DEEPMD
+
 cwd = os.getcwd()
 test_dir = Path(sys.argv[1])
 config_file = Path(test_dir, "config.yaml")
@@ -22,8 +32,12 @@ trajectory = Path(cwd,test_dir,"trj_lammps.dcd")
 hdf5_basename = Path(cwd,test_dir,"trj_lammps")
 print("Begin LAMMPS run")
 print(str(sys.argv),file=sys.stderr)
-freq = 100
-steps = 10000
+if model == DEEPMD:
+    freq = 100
+    steps = 10000
+else:
+    freq = 1
+    steps = 100
 if not test_dir.exists():
     os.makedirs(test_dir,exist_ok=True)
 os.chdir(test_dir)
