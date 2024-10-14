@@ -207,11 +207,16 @@ def lammps_get_devi(trj_file: PathLike, pdb_file: PathLike) -> None:
     if model == DEEPMD:
         return
     # make a sub-directory for each model
-    scaling_path = Path("..")/".."/".."/".."/"models"/"n2p2"/"scaling"/"scaling.data"
     scaling_name = Path("scaling.data")
-    input_path   = Path("..")/".."/".."/".."/"models"/"n2p2"/"scaling"/"input.nn"
     input_name   = Path("input.nn")
     train_path   = Path("..")/".."/".."/".."/"models"/"n2p2"
+    scaling_path = train_path/"scaling"/"scaling.data"
+    input_path   = train_path/"scaling"/"input.nn"
+    if not input_path.exists():
+        train_path   = Path("..")/".."/"n2p2"/"train-1"
+        scaling_path = train_path/"scaling.data"
+        input_path   = train_path/"input.nn"
+        train_path   = Path("..")/".."/"n2p2"
     for ii in range(1,5):
         dir_name = f"model-{str(ii)}"
         os.makedirs(dir_name,exist_ok=True)
